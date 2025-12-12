@@ -1,9 +1,9 @@
 # Miscellaneous
 *.class
+<<<<<<< HEAD
 *.log
 *.pyc
 *.swp
-*.lock
 .DS_Store
 .atom/
 .build/
@@ -18,6 +18,41 @@ migrate_working_dir/
 *.ipr
 *.iws
 .idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+=======
+*.lock
+*.log
+*.pyc
+*.swp
+.buildlog/
+.history
+
+
 
 # Flutter repo-specific
 /bin/cache/
@@ -37,6 +72,8 @@ migrate_working_dir/
 /packages/flutter/coverage/
 version
 analysis_benchmark.json
+
+# packages file containing multi-root paths
 .packages.generated
 
 # Flutter/Dart/Pub related
@@ -47,10 +84,7 @@ analysis_benchmark.json
 **/generated_plugin_registrant.dart
 .packages
 .pub-preload-cache/
-.pub-cache/
 .pub/
-/build/
-/coverage/
 build/
 flutter_*.png
 linked_*.ds
@@ -58,9 +92,6 @@ unlinked.ds
 unlinked_spec.ds
 
 # Android related
-/android/app/debug
-/android/app/profile
-/android/app/release
 **/android/**/gradle-wrapper.jar
 .gradle/
 **/android/captures/
@@ -118,11 +149,11 @@ unlinked_spec.ds
 **/linux/flutter/generated_plugin_registrant.h
 **/linux/flutter/generated_plugins.cmake
 
-# Symbolication related
-app.*.symbols
+# Coverage
+coverage/
 
-# Obfuscation related
-app.*.map.json
+# Symbols
+app.*.symbols
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
@@ -131,8 +162,4 @@ app.*.map.json
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+>>>>>>> d1d07adca6240c800fc15699b9a5a658a22e968c
