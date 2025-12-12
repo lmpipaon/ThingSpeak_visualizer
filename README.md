@@ -4,7 +4,7 @@ A cross-platform mobile and desktop application developed with Flutter and Dart,
 
 ## ✨ Key Features
 
-* **Multi-Language Support:** Choose between **English, Spanish (Español), and Basque (Euskara)** for the application interface.
+* **Multi-Language Support:** Choose between **English, Basque (Euskara), and Spanish (Español)** for the application interface.
 * **Persistent API Management:** The application only requires the user to input a comma-separated list of **ThingSpeak User API Keys** on the first run. These keys are securely stored for subsequent sessions, eliminating the need to re-enter them.
 * **Intuitive Navigation:** Easily navigate through a menu interface to select the desired **ThingSpeak Channel** and specific **Field** you wish to plot and visualize.
 
@@ -50,7 +50,7 @@ When the application launches:
 2.  **Data Selection:**
     * Navigate to the main menu.
     * Use the navigation options to **select a specific Channel** associated with one of your provided API keys.
-    * Choose the **Field** (e.g., Field 1, Field 2) within that channel whose data you wish to graph.
+    * Choose the **Field** within that channel whose data you wish to graph.
     * The application will fetch and display the data for the selected field.
 
 ## 🤝 Contribution & License
@@ -59,4 +59,4 @@ This project is open-source and released under the **MIT License**.
 
 ### 🤖 AI Assistance
 
-This project was developed by Lmpipaon. The development process, including complex structure generation and optimization of certain Dart/Flutter code snippets, was assisted by the **Gemini AI model** (Google) to enhance efficiency and explore best practices.
+This project was developed by Lmpipaon. The development process, including the generation of boilerplate code and optimization of certain Dart/Flutter code snippets, was assisted by **Artificial Intelligence (AI)**.
