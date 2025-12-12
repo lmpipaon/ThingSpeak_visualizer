@@ -1,0 +1,25 @@
+name: thingspeak_viewer
+description: Proyecto Flutter para ThingSpeak
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  http: ^1.2.0
+  intl: ^0.20.2
+  shared_preferences: ^2.2.3
+  syncfusion_flutter_charts: ^31.2.18
+  syncfusion_flutter_sliders: ^31.2.18
+  
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+flutter:
+  uses-material-design: true
