@@ -16,6 +16,7 @@ dependencies:
   shared_preferences: ^2.2.3
   syncfusion_flutter_charts: ^31.2.18
   syncfusion_flutter_sliders: ^31.2.18
+  url_launcher: ^6.2.1
   
   flutter_localizations:
     sdk: flutter
