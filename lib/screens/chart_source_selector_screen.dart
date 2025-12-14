@@ -143,7 +143,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(t.get('ok')), // CORREGIDO: Usando 'ok'
           ),
         ],
       ),
@@ -196,13 +196,13 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                 : null;
             
             return AlertDialog(
-              title: const Text('Añadir Fuente de Datos'),
+              title: Text(t.get('add_source_title')), // CORREGIDO
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButton<Channel>(
                     isExpanded: true,
-                    hint: const Text('Seleccionar Canal'),
+                    hint: Text(t.get('select_channel_hint')), // CORREGIDO
                     value: selectedChannel,
                     items: channels.map((channel) {
                       return DropdownMenuItem(
@@ -221,7 +221,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                   if (selectedChannel != null && fields != null)
                     DropdownButton<String>(
                       isExpanded: true,
-                      hint: const Text('Seleccionar Campo'),
+                      hint: Text(t.get('select_field_hint')), // CORREGIDO
                       value: selectedField,
                       items: fields.keys.map((fieldName) {
                         return DropdownMenuItem(
@@ -237,10 +237,10 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                     ),
                 ],
               ),
-            actions: [
+              actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
+                  child: Text(t.get('cancel')), // CORREGIDO
                 ),
                 ElevatedButton(
                   onPressed: selectedChannel != null && selectedField != null
@@ -349,11 +349,11 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                       Expanded(
                         child: ListView(
                           children: [
-                            Text('Fuentes a comparar:', style: Theme.of(context).textTheme.titleMedium),
+                            Text(t.get('sources_to_compare'), style: Theme.of(context).textTheme.titleMedium), // CORREGIDO
                             ...selectedSources.map((source) => ListTile(
                               leading: Icon(Icons.circle, color: source.color),
                               title: Text(source.displayName),
-                              subtitle: Text('Canal ID: ${source.channel.id}'),
+                              subtitle: Text('${t.get('channel_id_label')}: ${source.channel.id}'), // CORREGIDO
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
                                 onPressed: () => _removeSource(source.id),
@@ -364,15 +364,15 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                             TextButton.icon(
                               onPressed: channels.isEmpty ? null : _addSource,
                               icon: const Icon(Icons.add),
-                              label: const Text('Añadir Nueva Fuente'),
+                              label: Text(t.get('add_new_source')), // CORREGIDO
                             ),
                             // Indicación de ejes (Importante para la versión con Ejes Duales)
                             if (selectedSources.length > 1) 
-                              const Padding(
-                                padding: EdgeInsets.only(top: 8.0),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
-                                  'Nota: El primer campo (arriba) usará el eje Y izquierdo. Los demás usarán el eje Y derecho.',
-                                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey),
+                                  t.get('dual_axis_note'), // CORREGIDO
+                                  style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey),
                                 ),
                               ),
                           ],
@@ -387,7 +387,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(double.infinity, 50),
                           ),
-                          child: const Text('Generar Gráfica de Comparación', style: TextStyle(fontSize: 18)),
+                          child: Text(t.get('generate_chart_button'), style: const TextStyle(fontSize: 18)), // CORREGIDO
                         ),
                       ),
                     ],

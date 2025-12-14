@@ -4,14 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'chart_source_selector_screen.dart';
 import '../localization/translations.dart';
 
-
-
-
-
-
-
-
-
 class InitialLoader extends StatefulWidget {
   const InitialLoader({super.key});
 
@@ -19,9 +11,9 @@ class InitialLoader extends StatefulWidget {
   State<InitialLoader> createState() => _InitialLoaderState();
 }
 
-
 class _InitialLoaderState extends State<InitialLoader> {
-  String language = 'es';
+  // 1. CAMBIO AQUÍ: Inicialización a 'en'
+  String language = 'en'; 
   List<String> userApiKeys = [];
   bool _isLoading = true;
 
@@ -41,7 +33,8 @@ class _InitialLoaderState extends State<InitialLoader> {
 
   Future<void> _loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
-    language = prefs.getString('language') ?? 'es';
+    // 2. CAMBIO AQUÍ: Fallback de SharedPreferences a 'en'
+    language = prefs.getString('language') ?? 'en'; 
     userApiKeys = prefs.getStringList('apiKeys') ?? [];
     _apiController.text = userApiKeys.join(',');
 
@@ -86,8 +79,9 @@ class _InitialLoaderState extends State<InitialLoader> {
                 ),
                 const SizedBox(height: 10),
                 for (final lang in const [
-                  {'id': 'es', 'label': 'Español'},
+                  // 3. CAMBIO AQUÍ: Poner 'en' primero y cambiar el texto 'Español' si quieres.
                   {'id': 'en', 'label': 'English'},
+                  {'id': 'es', 'label': 'Español'}, 
                   {'id': 'eu', 'label': 'Euskara'},
                 ])
                   RadioListTile<String>(
