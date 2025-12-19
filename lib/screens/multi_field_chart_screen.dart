@@ -9,10 +9,6 @@ import '../services/thingspeak_service.dart';
 import '../constants/app_constants.dart';
 import '../localization/translations.dart';
 
-
-// ======================================================
-// GRÁFICA MULTI-FUENTE CON SELECTOR DE FECHA/HORA Y RANGO (SOPORTE DUAL AXIS)
-// ======================================================
 class MultiFieldChartScreen extends StatefulWidget {
   final List<ChartSource> sources;
   final DateTime start;
@@ -34,7 +30,7 @@ class MultiFieldChartScreen extends StatefulWidget {
 class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   late DateTime startDate;
   late DateTime endDate;
-  Map<String, List<ChartData>> multiData = {}; // {Source.id: [ChartData]}
+  Map<String, List<ChartData>> multiData = {};
   
   sliders.SfRangeValues? xRange;
   List<ChartData> widestDataList = []; 
@@ -45,14 +41,35 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   final ThingSpeakService service = ThingSpeakService();
   late Translations t;
 
+  // --- CONFIGURACIÓN DE ESTILO ---
+  final double axisFontSize = 10.0; 
+
+  final Map<String, double?> minValues = {};
+  final Map<String, double?> maxValues = {};
+  final Map<String, TextEditingController> minControllers = {};
+  final Map<String, TextEditingController> maxControllers = {};
+
   @override
   void initState() {
     super.initState();
     startDate = widget.start;
     endDate = widget.end;
-    // La instancia 't' se crea con el idioma pasado por el constructor
     t = Translations(widget.language); 
+    
+    for (var source in widget.sources) {
+      minControllers[source.id] = TextEditingController();
+      maxControllers[source.id] = TextEditingController();
+      minValues[source.id] = null;
+      maxValues[source.id] = null;
+    }
     fetchData();
+  }
+
+  @override
+  void dispose() {
+    for (var c in minControllers.values) { c.dispose(); }
+    for (var c in maxControllers.values) { c.dispose(); }
+    super.dispose();
   }
 
   Future<void> fetchData() async {
@@ -60,15 +77,13 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
       _isLoadingData = true;
       _dataErrorMessage = null;
       multiData = {};
-      widestDataList = []; // Resetear también
+      widestDataList = [];
     });
 
     try {
-      // 1. Cargar todas las fuentes en paralelo
       List<Future<void>> futures = [];
       for (var source in widget.sources) {
         futures.add(() async {
-          // Asumiendo que 'maxResultsForChart' está definido en app_constants.dart
           final values = await service.getFieldValuesWithTime(
             source.channel,
             source.fieldX,
@@ -77,332 +92,229 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
             results: maxResultsForChart,
           );
           if (mounted) {
-            setState(() {
-              multiData[source.id] = values;
-            });
+            setState(() { multiData[source.id] = values; });
           }
         }());
       }
-      
       await Future.wait(futures);
 
       if (!mounted) return;
       setState(() {
         _isLoadingData = false;
-        
-        // 2. Determinar el rango de datos más amplio para el slider
         int maxLen = 0;
         for (var dataList in multiData.values) {
-          if (dataList.length > maxLen) {
-            maxLen = dataList.length;
-          }
+          if (dataList.length > maxLen) maxLen = dataList.length;
         }
-        
-        // Encontrar la lista de datos más larga para usar como base del slider
-        List<ChartData> currentWidestDataList = [];
-        for (var dataList in multiData.values) {
-            if (dataList.length == maxLen) {
-                currentWidestDataList = dataList;
-                break;
-            }
-        }
-        
-        // 3. Inicializar el rango
         if (maxLen > 0) {
           xRange = sliders.SfRangeValues(0.0, (maxLen - 1).toDouble());
-        } else {
-          xRange = null;
-        }
-        
-        // Actualizar widestDataList para el tooltip del slider
-        if (maxLen > 0) {
-            widestDataList = currentWidestDataList;
-        } else {
-            widestDataList = [];
+          for (var dataList in multiData.values) {
+            if (dataList.length == maxLen) {
+              widestDataList = dataList;
+              break;
+            }
+          }
         }
       });
     } catch (e) {
       if (!mounted) return;
-        setState(() {
-        // TRADUCIDO: Mensaje de error de carga
+      setState(() {
         _dataErrorMessage = t.get('error_data_load'); 
         _isLoadingData = false;
       });
-      // El print es para el log de depuración, se mantiene en inglés o es una decisión de desarrollo.
-      print('Error al obtener datos de la gráfica multi-fuente: $e'); 
     }
   }
-  
-  Future<DateTime?> _pickDateTime(DateTime initialDateTime, DateTime firstDate, DateTime lastDate) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initialDateTime,
-      firstDate: firstDate,
-      lastDate: lastDate,
-    );
-    if (date == null) return null;
 
-    final time = await showTimePicker(
+  void _showYAxisSettings() {
+    showDialog(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initialDateTime),
+      builder: (context) {
+        return AlertDialog(
+          title: Text(t.get('y_axis_settings') ?? "Ajustar Ejes Y"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.sources.length,
+              itemBuilder: (context, index) {
+                final source = widget.sources[index];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(source.displayName, style: TextStyle(fontWeight: FontWeight.bold, color: source.color)),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: minControllers[source.id], decoration: const InputDecoration(labelText: "Mín"), keyboardType: TextInputType.number)),
+                        const SizedBox(width: 10),
+                        Expanded(child: TextField(controller: maxControllers[source.id], decoration: const InputDecoration(labelText: "Máx"), keyboardType: TextInputType.number)),
+                      ],
+                    ),
+                    const Divider(),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () {
+              setState(() {
+                for (var source in widget.sources) {
+                  minValues[source.id] = double.tryParse(minControllers[source.id]!.text);
+                  maxValues[source.id] = double.tryParse(maxControllers[source.id]!.text);
+                }
+              });
+              Navigator.pop(context);
+            }, child: const Text("Aplicar")),
+            TextButton(onPressed: () {
+              setState(() {
+                for (var source in widget.sources) {
+                  minValues[source.id] = maxValues[source.id] = null;
+                  minControllers[source.id]!.clear();
+                  maxControllers[source.id]!.clear();
+                }
+              });
+              Navigator.pop(context);
+            }, child: const Text("Auto")),
+          ],
+        );
+      },
     );
-    if (time == null) return null;
-
-    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
   Future<void> pickStartDateTime() async {
-    final maxDate = endDate.isAfter(DateTime.now()) ? DateTime.now() : endDate;
-    final newStart = await _pickDateTime(
-      startDate, 
-      DateTime.now().subtract(const Duration(days: 365)), 
-      maxDate,
-    );
-    
-    if (newStart == null) return;
-
-    if (newStart.isAfter(endDate)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        // TRADUCIDO: Mensaje de error de fecha de inicio
-        SnackBar(content: Text(t.get('error_date_start'))),
-      );
-      return;
-    }
-
-    setState(() {
-      startDate = newStart;
-    });
+    final date = await showDatePicker(context: context, initialDate: startDate, firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: endDate);
+    if (date == null) return;
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(startDate));
+    if (time == null) return;
+    setState(() => startDate = DateTime(date.year, date.month, date.day, time.hour, time.minute));
     fetchData();
   }
 
   Future<void> pickEndDateTime() async {
-    final newEnd = await _pickDateTime(
-      endDate, 
-      startDate,
-      DateTime.now(),
-    );
-    
-    if (newEnd == null) return;
-
-    if (newEnd.isBefore(startDate)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        // TRADUCIDO: Mensaje de error de fecha de fin
-        SnackBar(content: Text(t.get('error_date_end'))),
-      );
-      return;
-    }
-
-    setState(() {
-      endDate = newEnd;
-    });
+    final date = await showDatePicker(context: context, initialDate: endDate, firstDate: startDate, lastDate: DateTime.now());
+    if (date == null) return;
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(endDate));
+    if (time == null) return;
+    setState(() => endDate = DateTime(date.year, date.month, date.day, time.hour, time.minute));
     fetchData();
   }
   
-  
   @override
   Widget build(BuildContext context) {
-    final formatter = DateFormat('dd/MM HH:mm');
-    
     final List<CartesianSeries> seriesList = [];
-    int maxLen = 0;
-    
-    // 1. Encontrar la lista de datos más larga y su longitud para el slider
-    for (var dataList in multiData.values) {
-        if (dataList.length > maxLen) {
-            maxLen = dataList.length;
-        }
-    }
-    
-    // 2. Asignación de Ejes: El primer elemento usa el Eje Primario, el resto el Secundario
-    final ChartSource? primarySource = widget.sources.isNotEmpty ? widget.sources.first : null;
-    final List<ChartSource> secondarySources = widget.sources.skip(1).toList();
-    
-    // --- Lógica de Generación de Series ---
-    
-    if (xRange != null) {
-      final startIdx = xRange!.start.round(); 
-      final endIdx = xRange!.end.round();
+    final List<ChartAxis> additionalAxes = [];
+    final ChartSource? firstSource = widget.sources.isNotEmpty ? widget.sources.first : null;
+
+    for (int i = 0; i < widget.sources.length; i++) {
+      final source = widget.sources[i];
+      final rawData = multiData[source.id] ?? [];
       
-      // 3. Eje Primario
-      if (primarySource != null) {
-        final rawData = multiData[primarySource.id];
-        if (rawData != null && rawData.isNotEmpty) {
-          final filteredData = rawData.sublist(startIdx, (endIdx + 1).clamp(startIdx, rawData.length));
-          
-          seriesList.add(
-            LineSeries<ChartData, DateTime>(
-              name: primarySource.displayName, 
-              dataSource: filteredData,
-              xValueMapper: (d, _) => d.time,
-              yValueMapper: (d, _) => d.value,
-              color: primarySource.color, 
-              markerSettings: const MarkerSettings(isVisible: false),
-              enableTooltip: true,
+      if (xRange != null && rawData.isNotEmpty) {
+        final startIdx = xRange!.start.round(); 
+        final endIdx = xRange!.end.round();
+        final filteredData = rawData.sublist(startIdx, (endIdx + 1).clamp(startIdx, rawData.length));
+
+        if (i > 0) {
+          additionalAxes.add(
+            NumericAxis(
+              name: 'axis_${source.id}',
+              opposedPosition: false,
+              minimum: minValues[source.id],
+              maximum: maxValues[source.id],
+              labelStyle: TextStyle(color: source.color, fontSize: axisFontSize),
+              title: AxisTitle(
+                text: source.displayName, 
+                textStyle: TextStyle(color: source.color, fontSize: axisFontSize)
+              ),
             ),
           );
         }
-      }
 
-      // 4. Eje Secundario (si hay más de una fuente)
-      if (secondarySources.isNotEmpty) {
-        for (var source in secondarySources) {
-          final rawData = multiData[source.id];
-          if (rawData != null && rawData.isNotEmpty) {
-            final filteredData = rawData.sublist(startIdx, (endIdx + 1).clamp(startIdx, rawData.length));
-            
-            seriesList.add(
-              LineSeries<ChartData, DateTime>(
-                name: source.displayName, 
-                dataSource: filteredData,
-                xValueMapper: (d, _) => d.time,
-                yValueMapper: (d, _) => d.value,
-                yAxisName: 'secondaryYAxis', // ¡Clave! Asigna al eje secundario
-                color: source.color, 
-                markerSettings: const MarkerSettings(isVisible: false),
-                enableTooltip: true,
-              ),
-            );
-          }
-        }
+        seriesList.add(
+          LineSeries<ChartData, DateTime>(
+            name: source.displayName, 
+            dataSource: filteredData,
+            xValueMapper: (d, _) => d.time,
+            yValueMapper: (d, _) => d.value,
+            yAxisName: i == 0 ? null : 'axis_${source.id}',
+            color: source.color, 
+            enableTooltip: true,
+          ),
+        );
       }
     }
-    
-    double sliderInterval = 1;
-    if (maxLen > 5) {
-      sliderInterval = ((maxLen - 1) / 5).ceilToDouble();
-    }
-
 
     return Scaffold(
-      // CORRECCIÓN 1: Título del AppBar usando traducción
-      appBar: AppBar(title: Text(t.get('chart_comparison_title'))),
+      appBar: AppBar(
+        title: Text(t.get('chart_comparison_title')),
+        actions: [IconButton(icon: const Icon(Icons.tune), onPressed: _showYAxisSettings)],
+      ),
       body: Column(
         children: [
+          // FILA DE FECHAS (SIN ICONO INTERMEDIO)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ElevatedButton.icon(
-                  onPressed: pickStartDateTime,
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  // TRADUCIDO: 'start'
-                  label: Text('${t.get('start')}: ${formatter.format(startDate)}'),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: pickStartDateTime, 
+                    child: Text(DateFormat('dd/MM HH:mm').format(startDate), style: const TextStyle(fontSize: 12)),
+                  ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: pickEndDateTime,
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  // TRADUCIDO: 'end'
-                  label: Text('${t.get('end')}: ${formatter.format(endDate)}'),
+                const SizedBox(width: 16), // Espacio entre botones
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: pickEndDateTime, 
+                    child: Text(DateFormat('dd/MM HH:mm').format(endDate), style: const TextStyle(fontSize: 12)),
+                  ),
                 ),
               ],
             ),
           ),
           Expanded(
             child: _isLoadingData
-                ? const Center(child: CircularProgressIndicator())
-                : _dataErrorMessage != null
-                  ? Center(child: Text(_dataErrorMessage!))
-                  : seriesList.isEmpty
-                      // CORRECCIÓN 2: Mensaje de "No hay datos" usando traducción
-                      ? Center(child: Text(t.get('no_data_available'))) 
-                      : SfCartesianChart(
-                          primaryXAxis: DateTimeAxis(
-                            dateFormat: DateFormat('HH:mm\ndd/MM'),
-                          ),
-                          // Eje Y Primario (Izquierda)
-                          primaryYAxis: NumericAxis(
-                            title: AxisTitle(
-                              text: primarySource != null 
-                                ? primarySource.displayName 
-                                : '', // Usa un string vacío si no hay fuente.
-                            ),
-                          ),
-                          // Ejes Y Secundarios (Solo creamos uno a la Derecha)
-                          axes: secondarySources.isNotEmpty
-                            ? <ChartAxis>[
-                                NumericAxis(
-                                  name: 'secondaryYAxis', // Nombre usado en la serie
-                                  opposedPosition: true, // Lo coloca a la derecha
-                                  title: AxisTitle(
-                                    text: secondarySources.map((s) => s.fieldName).join(' / '), // Muestra los nombres de los campos agrupados
-                                  ),
-                                )
-                              ]
-                            : <ChartAxis>[],
-                          
-                          legend: const Legend(isVisible: true, position: LegendPosition.bottom),
-                          
-                          // ---------------------------------------------------------
-                          // TOOLTIP (No contiene texto fijo que requiera 't.get()')
-                          // ---------------------------------------------------------
-                          tooltipBehavior: TooltipBehavior(
-                            enable: true,
-                            header: '', 
-                            
-                            builder: (
-                              dynamic data, 
-                              ChartPoint<dynamic> point, 
-                              ChartSeries<dynamic, dynamic> series, 
-                              int pointIndex, 
-                              int seriesIndex 
-                            ) {
-                              // El 'data' es el objeto ChartData
-                              final ChartData chartData = data as ChartData; 
-                              
-                              // Formato de Fecha/Hora: dd/MM/yyyy HH:mm
-                              final String dateTimeFormatted = DateFormat('dd/MM/yyyy HH:mm').format(chartData.time);
-
-                              // Formato de Valor (a dos decimales)
-                              final String valueFormatted = chartData.value.toStringAsFixed(2);
-                              
-                              // Obtener el nombre de la serie (ej. "Temperatura")
-                              final String seriesName = series.name ?? t.get('default_value_label'); // Uso t.get aquí por si el nombre de la serie es null
-                              
-                              // Devolver un WIDGET (Container) con el contenido
-                              return Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '$dateTimeFormatted\n$seriesName: $valueFormatted',
-                                  style: const TextStyle(fontSize: 12, color: Colors.black),
-                                ),
-                              );
-                            },
-                          ),
-                          // ---------------------------------------------------------
-
-                          series: seriesList, 
+              ? const Center(child: CircularProgressIndicator())
+              : SfCartesianChart(
+                  primaryXAxis: DateTimeAxis(dateFormat: DateFormat('HH:mm')),
+                  primaryYAxis: NumericAxis(
+                    minimum: firstSource != null ? minValues[firstSource.id] : null,
+                    maximum: firstSource != null ? maxValues[firstSource.id] : null,
+                    labelStyle: TextStyle(color: firstSource?.color, fontSize: axisFontSize),
+                    title: AxisTitle(
+                      text: firstSource?.displayName ?? '', 
+                      textStyle: TextStyle(color: firstSource?.color, fontSize: axisFontSize)
+                    ),
+                  ),
+                  axes: additionalAxes,
+                  series: seriesList,
+                  legend: const Legend(isVisible: true, position: LegendPosition.bottom),
+                  tooltipBehavior: TooltipBehavior(
+                    enable: true, 
+                    header: '', 
+                    builder: (dynamic data, ChartPoint point, ChartSeries series, int pIdx, int sIdx) {
+                      final ChartData d = data as ChartData;
+                      final String dateStr = DateFormat('dd - HH:mm').format(d.time);
+                      return Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)]),
+                        child: Text(
+                          '$dateStr\n${series.name}: ${d.value.toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.black, fontSize: 12),
                         ),
+                      );
+                    }
+                  ),
+                ),
           ),
-          // Slider de rango para el zoom/filtrado
-          if (xRange != null && widestDataList.isNotEmpty) // Usa widestDataList
+          if (xRange != null && widestDataList.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(16),
               child: sliders.SfRangeSlider(
                 min: 0.0,
-                max: (maxLen - 1).toDouble(),
+                max: (widestDataList.length - 1).toDouble(),
                 values: xRange!,
-                showLabels: false,
-                interval: sliderInterval,
-                enableTooltip: true,
-                tooltipTextFormatterCallback: (actualValue, formattedText) {
-                    final index = actualValue.round();
-                    if (index >= 0 && index < widestDataList.length) { // Usa widestDataList
-                        return DateFormat('HH:mm').format(widestDataList[index].time); 
-                    }
-                    return formattedText;
-                },
-                onChanged: (values) {
-                  setState(() {
-                    xRange = values;
-                  });
-                },
+                onChanged: (values) => setState(() => xRange = values),
               ),
             ),
         ],
