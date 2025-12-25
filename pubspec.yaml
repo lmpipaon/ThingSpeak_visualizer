@@ -11,11 +11,11 @@ dependencies:
   flutter:
     sdk: flutter
 
+
+  fl_chart: ^0.69.0
   http: ^1.2.0
   intl: ^0.20.2
   shared_preferences: ^2.2.3
-  syncfusion_flutter_charts: ^31.2.18
-  syncfusion_flutter_sliders: ^31.2.18
   url_launcher: ^6.2.1
   
   flutter_localizations:

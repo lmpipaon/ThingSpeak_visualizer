@@ -1,13 +1,11 @@
-import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
+// Asegúrate de que estas rutas coincidan exactamente con tu estructura de carpetas
 import '../models/chart_data.dart';
 import '../models/chart_source.dart';
 import '../models/favorite_config.dart';
@@ -53,6 +51,7 @@ class YAxisPainter extends CustomPainter {
       
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
+    // Línea vertical separadora de cada escala
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, size.height), paintLine);
   }
 
@@ -84,9 +83,6 @@ class MultiFieldChartScreen extends StatefulWidget {
 }
 
 class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
-  // GlobalKey para la captura de pantalla
-  final GlobalKey _boundaryKey = GlobalKey();
-  
   late DateTime startDate;
   late DateTime endDate;
   bool _isLoadingData = true;
@@ -125,19 +121,20 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     super.dispose();
   }
 
+  // MÉTODO FETCH CORREGIDO: Resetea todo para sincronizar nuevas fechas
   Future<void> fetchData() async {
     if (!mounted) return;
     setState(() {
       _isLoadingData = true;
       multiData.clear();
       widestDataList.clear();
-      xRange = null; 
+      xRange = null; // IMPORTANTE: Resetea el zoom al cambiar fechas
     });
 
     try {
       for (var s in widget.sources) {
         final data = await service.getFieldValuesWithTime(
-          s.channel, s.fieldX, start: startDate, end: endDate, results: 8000,
+          s.channel, s.fieldX, start: startDate, end: endDate, results: 800,
         );
         multiData[s.id] = data;
       }
@@ -158,65 +155,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     }
   }
 
-  // --- FUNCIÓN DE CAPTURA DE PANTALLA ---
-  Future<void> _takeScreenshot() async {
-    try {
-      RenderRepaintBoundary boundary = _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      // Aquí el objeto 'image' contiene la captura del gráfico.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Captura realizada correctamente')),
-      );
-    } catch (e) {
-      debugPrint("Error al capturar: $e");
-    }
-  }
-
-  // --- FUNCIÓN DE FAVORITOS ---
-  Future<void> _saveAsFavorite() async {
-    final TextEditingController nameController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Guardar en Favoritos'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(hintText: 'Nombre de esta configuración'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isNotEmpty) {
-                final prefs = await SharedPreferences.getInstance();
-                
-                // Creamos el objeto con tus escalas manuales actuales (minValues/maxValues)
-                final newFavorite = FavoriteConfig(
-                  name: nameController.text,
-                  sources: widget.sources,
-                  minValues: Map<String, double?>.from(minValues), 
-                  maxValues: Map<String, double?>.from(maxValues), 
-                );
-
-                List<String> favs = prefs.getStringList('favorites_list') ?? [];
-                favs.add(newFavorite.toJson());
-                await prefs.setStringList('favorites_list', favs);
-
-                if (!mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('"${nameController.text}" guardado')),
-                );
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // ---------------- CONSTRUCCIÓN DE GRÁFICA ----------------
   Widget _buildChart() {
     if (xRange == null || widestDataList.isEmpty) {
       return const Center(child: Text("Sin datos en este rango"));
@@ -278,28 +217,14 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (group) => Colors.white.withOpacity(0.95),
-            tooltipPadding: const EdgeInsets.all(8),
-            tooltipRoundedRadius: 8,
-            fitInsideHorizontally: true, 
-            fitInsideVertically: true,
-            getTooltipItems: (List<LineBarSpot> spots) {
-              return spots.map((LineBarSpot s) {
-                final serie = widget.sources[s.barIndex];
-                final list = multiData[serie.id]!;
-                final DateTime time = list[s.x.toInt()].time;
-                final double valor = list[s.x.toInt()].value;
-
-                return LineTooltipItem(
-                  '${DateFormat('MM/dd HH:mm').format(time)}\n${valor.toStringAsFixed(2)}',
-                  TextStyle(
-                    color: serie.color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                );
-              }).toList();
-            },
+            getTooltipColor: (group) => Colors.white.withOpacity(0.9),
+            getTooltipItems: (spots) => spots.map((s) {
+              final serie = widget.sources[s.barIndex];
+              final list = multiData[serie.id]!;
+              if (s.x.toInt() >= list.length) return null;
+              return LineTooltipItem('${serie.displayName}\n${list[s.x.toInt()].value.toStringAsFixed(2)}', 
+                TextStyle(color: serie.color, fontWeight: FontWeight.bold));
+            }).toList(),
           ),
         ),
       ),
@@ -312,21 +237,15 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
       int visibleCount = widget.sources.where((s) => serieVisible[s.id] == true).length;
       final double leftPadding = visibleCount * axisWidth;
 
-      return RepaintBoundary(
-        key: _boundaryKey, // ENVOLVEMOS PARA CAPTURAR
-        child: Container(
-          color: Colors.white, // Fondo blanco para la captura
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Padding(
-                padding: EdgeInsets.only(left: leftPadding + 10, right: 20, bottom: 5),
-                child: _buildChart(),
-              ),
-              ..._buildYAxes(axisWidth),
-            ],
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: leftPadding + 10, right: 20, bottom: 5),
+            child: _buildChart(),
           ),
-        ),
+          ..._buildYAxes(axisWidth),
+        ],
       );
     });
   }
@@ -341,7 +260,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
       final left = (index++).toDouble() * width;
 
       return Positioned(
-        left: left, top: 0, bottom: 35,
+        left: left, top: 0, bottom: 35, // Espacio para el eje X
         child: CustomPaint(
           size: Size(width, 0),
           painter: YAxisPainter(minY: minY, maxY: maxY, width: width, color: s.color),
@@ -350,12 +269,11 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     }).toList();
   }
 
+  // ---------------- UI BUILD ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('ThingSpeak Multiescala'), actions: [
-        IconButton(icon: const Icon(Icons.camera_alt), onPressed: _takeScreenshot, tooltip: 'Capturar Gráfico'),
-        IconButton(icon: const Icon(Icons.favorite_border, color: Colors.redAccent), onPressed: _saveAsFavorite, tooltip: 'Guardar favorito'),
         IconButton(icon: const Icon(Icons.tune), onPressed: _showYAxisSettings),
         IconButton(icon: const Icon(Icons.refresh), onPressed: fetchData),
       ]),
@@ -407,7 +325,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
       final nd = DateTime(d.year, d.month, d.day, t.hour, t.minute);
       if (start) startDate = nd; else endDate = nd;
     });
-    fetchData(); 
+    fetchData(); // Esto refresca el gráfico con el nuevo rango
   }
 
   void _showYAxisSettings() {

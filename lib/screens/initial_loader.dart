@@ -33,7 +33,25 @@ class _InitialLoaderState extends State<InitialLoader> {
 
   Future<void> _loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
+    // --- AÑADE ESTA LÍNEA SOLO UNA VEZ ---
+     //await prefs.remove('favorites_list'); 
+    // -------------------------------------
     // 2. CAMBIO AQUÍ: Fallback de SharedPreferences a 'en'
+
+// Esto simula un 'cat' imprimiendo el contenido en tu terminal de Flutter
+  List<String>? rawFavs = prefs.getStringList('favorites_list');
+  
+  print("========= CONTENIDO DEL REGISTRO (FAVORITOS) =========");
+  if (rawFavs == null || rawFavs.isEmpty) {
+    print("El registro está vacío o la clave no existe.");
+  } else {
+    for (var f in rawFavs) {
+      print(f); // Aquí verás el JSON puro
+    }
+  }
+  print("======================================================");
+
+
     language = prefs.getString('language') ?? 'en'; 
     userApiKeys = prefs.getStringList('apiKeys') ?? [];
     _apiController.text = userApiKeys.join(',');
