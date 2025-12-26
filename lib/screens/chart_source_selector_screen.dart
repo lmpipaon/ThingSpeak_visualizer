@@ -267,7 +267,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
 
   Future<void> _goToChart() async {
     final now = DateTime.now();
-    final sixHoursAgo = now.subtract(const Duration(hours: 6)); 
+    final sixHoursAgo = now.subtract(const Duration(hours: 24)); 
     await Navigator.push(
       context,
       MaterialPageRoute(

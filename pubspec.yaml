@@ -1,8 +1,7 @@
-name: thingspeak_viewer
-description: Proyecto Flutter para ThingSpeak
+name: thingspeak_visualizer
+description: A powerful and lightweight data visualizer for ThingSpeak channels.
+version: 1.2.0
 publish_to: 'none'
-
-version: 1.0.0+1
 
 environment:
   sdk: ^3.0.0
@@ -21,6 +20,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  package_info_plus: ^9.0.0
 
 flutter:
   uses-material-design: true
