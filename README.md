@@ -18,6 +18,25 @@ Most ThingSpeak viewers require you to manually add each Channel ID and its spec
 
 ---
 
+## 📸 Screenshots
+
+| Desktop View (Windows) | Mobile View |
+| :---: | :---: |
+| <img src="screenshots/windows_1.png" width="500"> | <img src="screenshots/android_1.png" width="220"> |
+
+---
+
+## 🔑 How to find your User API Key
+
+Unlike the *Channel API Key*, the **User API Key** allows the app to list all your channels automatically. Follow these steps:
+
+1. Log in to your account at [ThingSpeak.com](https://thingspeak.com/).
+2. Click on **Account** > **My Profile** in the top right menu.
+3. In the **User API Key** section, you will find your unique key.
+4. Copy and paste this key into the app to start visualizing your data.
+
+---
+
 ## 📥 Download & Try it out
 
 ### 🌐 Web Version
@@ -27,17 +46,6 @@ You can try the web version instantly without installing anything:
 ### 💻 Desktop & Mobile Binaries
 If you don't want to compile the code, you can download the ready-to-use executables (Windows, Linux, Android) from the **Releases** section:
 👉 **[Download Latest Release](https://github.com/lmpipaon/ThingSpeak_visualizer/releases)**
-
----
-
-## 📸 Screenshots
-
-| Desktop View (Windows) |
-| :---: |
-| ![Windows Screenshot](screenshots/windows_1.png) |
-| Movile View |
-| :---: |
-| ![Windows Screenshot](screenshots/android_1.png) |
 
 ---
 
@@ -55,13 +63,6 @@ If you want to run the project from source or contribute, follow these steps:
 
 ### 1. Prerequisites
 * [Flutter SDK](https://docs.flutter.dev/get-started/install) installed.
-* **For Windows:** [Visual Studio 2022](https://visualstudio.microsoft.com/vs/community/) with "Desktop development with C++".
+* **For Windows:** [Visual Studio 2022](https://visualstudio.microsoft.com/vs/community/) with "Desktop development with C++" workload.
 * **For Linux:** ```bash
-    sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-    ```
-
-### 2. Setup
-```bash
-git clone [https://github.com/lmpipaon/ThingSpeak_visualizer.git](https://github.com/lmpipaon/ThingSpeak_visualizer.git)
-cd ThingSpeak_visualizer
-flutter pub get
+  sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
