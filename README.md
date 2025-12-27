@@ -1,62 +1,64 @@
-# 📊 Flutter ThingSpeak Data Visualizer
+# ThingSpeak Graphics Viewer 📊
 
-A cross-platform mobile and desktop application developed with Flutter and Dart, designed to efficiently visualize real-time and historical data from your ThingSpeak channels. This viewer offers a clean, user-friendly interface for monitoring data fields.
+![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=flat&logo=Flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=flat&logo=dart&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Android%20|%20iOS%20|%20Web%20|%20Windows%20|%20Linux-blue)
 
-## ✨ Key Features
+A simple and efficient tool built with **Flutter** to visualize your ThingSpeak IoT data. This app allows you to monitor your channels across multiple platforms including mobile, web, and desktop (Windows/Linux).
 
-* **Multi-Language Support:** Choose between **English, Basque (Euskara), and Spanish (Español)** for the application interface.
-* **Persistent API Management:** The application only requires the user to input a comma-separated list of **ThingSpeak User API Keys** on the first run. These keys are securely stored for subsequent sessions, eliminating the need to re-enter them.
-* **Intuitive Navigation:** Easily navigate through a menu interface to select the desired **ThingSpeak Channel** and specific **Field** you wish to plot and visualize.
+---
 
-## 🚀 Getting Started
+## 🚀 Why this app?
 
-This project is built using the Flutter framework. To run it locally, follow these steps:
+Most ThingSpeak viewers require you to manually add each Channel ID and its specific Read API Key one by one. This project simplifies that process significantly:
 
-### Prerequisites
+* **Centralized Access:** You only need to provide your **User API Key**.
+* **Automatic Discovery:** The app automatically fetches and lists all channels linked to your account.
+* **Multi-Platform Support:** One single codebase that runs seamlessly on Web, Android, iOS, Windows, and Linux.
 
-* Flutter SDK (v3.19.0 or later recommended)
-* Dart SDK
-* A code editor (VS Code recommended)
+---
 
-### Installation and Run
+## 📥 Download & Try it out
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/lmpipaon/ThingSpeak_visualizer.git](https://github.com/lmpipaon/ThingSpeak_visualizer.git)
-    cd ThingSpeak_visualizer
+### 🌐 Web Version
+You can try the web version instantly without installing anything:
+👉 **[Open Web App Demo](https://lmpipaon.github.io/web/tv/index.html)**
+
+### 💻 Desktop & Mobile Binaries
+If you don't want to compile the code, you can download the ready-to-use executables (Windows, Linux, Android) from the **Releases** section:
+👉 **[Download Latest Release](https://github.com/lmpipaon/ThingSpeak_visualizer/releases)**
+
+---
+
+## 📸 Screenshots
+
+| Desktop View (Windows) |
+| :---: |
+| ![Windows Screenshot](screenshots/windows_1.png) |
+
+---
+
+## 🔒 Security & Privacy
+Privacy is handled with a "local-first" approach:
+* **Local Storage:** Your User API Key is stored **locally** on your device or computer using secure storage.
+* **Direct Communication:** The app communicates directly with the official ThingSpeak API. 
+* **No Data Distribution:** Your credentials are never shared, never uploaded to external servers, and never distributed.
+
+---
+
+## ⚙️ Development & Installation
+
+If you want to run the project from source or contribute, follow these steps:
+
+### 1. Prerequisites
+* [Flutter SDK](https://docs.flutter.dev/get-started/install) installed.
+* **For Windows:** [Visual Studio 2022](https://visualstudio.microsoft.com/vs/community/) with "Desktop development with C++".
+* **For Linux:** ```bash
+    sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
     ```
 
-2.  **Get the project dependencies:**
-    ```bash
-    flutter pub get
-    ```
-
-3.  **Run the application on a target device/emulator:**
-    ```bash
-    flutter run
-    ```
-    *(Note: You can specify a target platform like `flutter run -d windows` or `flutter run -d chrome`)*
-
-## ⚙️ How to Use the Visualizer
-
-When the application launches:
-
-1.  **First Run Setup:**
-    * You will be prompted to enter your **ThingSpeak User Read API Keys**.
-    * Enter all keys separated by commas (e.g., `key1,key2,key3`).
-    * Select your preferred application language (English, Español, or Euskara).
-    * This setup only runs once. On subsequent launches, the keys and language will be loaded automatically.
-
-2.  **Data Selection:**
-    * Navigate to the main menu.
-    * Use the navigation options to **select a specific Channel** associated with one of your provided API keys.
-    * Choose the **Field** within that channel whose data you wish to graph.
-    * The application will fetch and display the data for the selected field.
-
-## 🤝 Contribution & License
-
-This project is open-source and released under the **MIT License**.
-
-### 🤖 AI Assistance
-
-This project was developed by Lmpipaon. The development process, including the generation of boilerplate code and optimization of certain Dart/Flutter code snippets, was assisted by **Artificial Intelligence (AI)**.
+### 2. Setup
+```bash
+git clone [https://github.com/lmpipaon/ThingSpeak_visualizer.git](https://github.com/lmpipaon/ThingSpeak_visualizer.git)
+cd ThingSpeak_visualizer
+flutter pub get
