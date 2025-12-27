@@ -35,6 +35,9 @@ If you don't want to compile the code, you can download the ready-to-use executa
 | Desktop View (Windows) |
 | :---: |
 | ![Windows Screenshot](screenshots/windows_1.png) |
+| Movile View |
+| :---: |
+| ![Windows Screenshot](screenshots/android_1.png) |
 
 ---
 
