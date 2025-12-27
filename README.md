@@ -20,7 +20,7 @@ Most ThingSpeak viewers require you to manually add each Channel ID and its spec
 
 ## 📸 Screenshots
 
-| Desktop View (Windows) | Mobile View |
+| Web / Desktop View | Mobile View |
 | :---: | :---: |
 | <img src="screenshots/windows_1.png" width="500"> | <img src="screenshots/android_1.png" width="220"> |
 
