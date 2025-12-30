@@ -27,7 +27,7 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => InitialLoader()),
+      MaterialPageRoute(builder: (_) => const InitialLoader()),
       (Route<dynamic> route) => false,
     );
   }

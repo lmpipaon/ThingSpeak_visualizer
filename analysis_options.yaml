@@ -1,14 +1,18 @@
-# include: package:flutter_lints/queries.yaml # O la versión que uses
+# Esta línea activa el paquete de reglas estándar de Google/Flutter
+include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  # Eliminamos la sección "errors" o la dejamos vacía para que NO ignore nada
   errors:
-    # Esto silencia avisos específicos si te molestan mucho
-    todo: ignore
-    invalid_annotation_target: ignore
+    # Si dejas esto vacío, el linter te avisará de TODO (incluyendo deprecated)
+    # todo: ignore  <-- Borrado o comentado
 
 linter:
   rules:
-    # Aquí puedes desactivar reglas que te den muchos warnings
-    prefer_const_constructors: false
-    prefer_final_fields: false
-    use_key_in_widget_constructors: false
+    # Activamos las reglas que antes tenías en 'false'
+    prefer_const_constructors: true
+    prefer_final_fields: true
+    use_key_in_widget_constructors: true
+    # Puedes añadir más reglas si quieres ser aún más estricto:
+    always_declare_return_types: true
+    annotate_overrides: true
