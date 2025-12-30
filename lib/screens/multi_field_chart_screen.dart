@@ -1,4 +1,5 @@
-import 'dart:convert';
+// ignore_for_file: deprecated_member_use
+
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -11,8 +12,14 @@ import '../models/chart_data.dart';
 import '../models/chart_source.dart';
 import '../models/favorite_config.dart';
 import '../services/thingspeak_service.dart';
-import '../constants/app_constants.dart';
 import '../localization/translations.dart';
+
+import 'dart:typed_data';
+import 'dart:io' show File, Platform; 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:universal_html/html.dart' as html;
 
 // ------------------- PAINTER DE EJES Y (MULTIESCALA EXTERNA) -------------------
 class YAxisPainter extends CustomPainter {
@@ -91,7 +98,6 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   final ThingSpeakService service = ThingSpeakService();
   
   Map<String, List<ChartData>> multiData = {};
-  List<ChartData> widestDataList = [];
   RangeValues? xRange;
 
   final Map<String, double?> minValues = {};
@@ -131,7 +137,6 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     setState(() {
       _isLoadingData = true;
       multiData.clear();
-      widestDataList.clear();
       xRange = null; 
     });
 
@@ -150,10 +155,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
       if (allTimes.isNotEmpty) {
         final minX = allTimes.reduce(min).toDouble();
         final maxX = allTimes.reduce(max).toDouble();
-
-        setState(() {
-          xRange = RangeValues(minX, maxX);
-        });
+        setState(() => xRange = RangeValues(minX, maxX));
       }
 
     } catch (e) {
@@ -167,30 +169,58 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     try {
       RenderRepaintBoundary boundary = _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.get('captureChart'))),
-      );
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      String fileName = "ThingSpeak_Chart_${DateTime.now().millisecondsSinceEpoch}.png";
+
+      if (kIsWeb) {
+        final blob = html.Blob([pngBytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute("download", fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+        _showSuccessSnackBar("Descarga iniciada");
+      } else {
+        if (Platform.isAndroid || Platform.isIOS) {
+          final result = await ImageGallerySaver.saveImage(pngBytes, name: fileName, quality: 100);
+          if (result['isSuccess']) _showSuccessSnackBar("Imagen guardada en la Galería");
+        } 
+        else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+          String? outputFile = await FilePicker.platform.saveFile(
+            dialogTitle: '¿Dónde quieres guardar el gráfico?',
+            fileName: fileName,
+            type: FileType.custom,
+            allowedExtensions: ['png'],
+          );
+          if (outputFile != null) {
+            await File(outputFile).writeAsBytes(pngBytes);
+            _showSuccessSnackBar("Guardado en: $outputFile");
+          }
+        }
+      }
     } catch (e) {
-      debugPrint("Error al capturar: $e");
+      _showSuccessSnackBar("Error al intentar guardar la captura");
     }
+  }
+
+  void _showSuccessSnackBar(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), duration: const Duration(seconds: 3), behavior: SnackBarBehavior.floating),
+    );
   }
 
   Future<void> _saveAsFavorite() async {
     final TextEditingController nameController = TextEditingController();
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t.get('saveFavorite')),
-        content: TextField(
-          controller: nameController,
-          decoration: InputDecoration(hintText: t.get('favoriteNameHint')),
-        ),
+        content: TextField(controller: nameController, decoration: InputDecoration(hintText: t.get('favoriteNameHint'))),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(t.get('cancel'))
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(t.get('cancel'))),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
@@ -201,16 +231,12 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
                   minValues: Map<String, double?>.from(minValues), 
                   maxValues: Map<String, double?>.from(maxValues), 
                 );
-
                 List<String> favs = prefs.getStringList('favorites_list') ?? [];
                 favs.add(newFavorite.toJson());
                 await prefs.setStringList('favorites_list', favs);
-
                 if (!mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('"${nameController.text}" ${t.get('saved')}')),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${nameController.text}" ${t.get('saved')}')));
               }
             },
             child: Text(t.get('save')),
@@ -221,38 +247,22 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   }
 
   Widget _buildChart() {
-    if (xRange == null || multiData.isEmpty) {
-      return Center(child: Text(t.get('no_data_available')));
-    }
+    if (xRange == null || multiData.isEmpty) return Center(child: Text(t.get('no_data_available')));
 
     final List<LineChartBarData> lines = [];
-    final List<ChartSource> visibleSources = [];
-
-    final allTimes = multiData.values
-        .expand((list) => list.map((e) => e.time.millisecondsSinceEpoch.toDouble()))
-        .toList();
-
-    if (allTimes.isEmpty) {
-      return Center(child: Text(t.get('no_data_available')));
-    }
-
-    final double minTime = allTimes.reduce(min);
-    final double maxTime = allTimes.reduce(max);
+    final List<ChartSource> visibleSourcesList = [];
 
     for (var s in widget.sources) {
       if (serieVisible[s.id] != true) continue;
-      visibleSources.add(s);
-
       final data = multiData[s.id] ?? [];
       if (data.isEmpty) continue;
+      visibleSourcesList.add(s);
 
       final minY = minValues[s.id] ?? data.map((e) => e.value).reduce(min);
       final maxY = maxValues[s.id] ?? data.map((e) => e.value).reduce(max);
 
       final spots = data
-          .where((e) =>
-              e.time.millisecondsSinceEpoch.toDouble() >= xRange!.start &&
-              e.time.millisecondsSinceEpoch.toDouble() <= xRange!.end)
+          .where((e) => e.time.millisecondsSinceEpoch >= xRange!.start && e.time.millisecondsSinceEpoch <= xRange!.end)
           .map((e) => FlSpot(
                 e.time.millisecondsSinceEpoch.toDouble(),
                 (maxY == minY) ? 0.5 : (e.value - minY) / (maxY - minY),
@@ -269,8 +279,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     }
 
     final rangeMs = xRange!.end - xRange!.start;
-    final desiredLabels = 5;
-    final intervalMs = (rangeMs / desiredLabels).ceilToDouble();
+    final intervalMs = (rangeMs / 5).ceilToDouble(); // Máximo 5 etiquetas para evitar amontonamiento
 
     return Column(
       children: [
@@ -283,11 +292,53 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
               gridData: FlGridData(
                 show: true,
                 horizontalInterval: 0.25,
-                getDrawingHorizontalLine: (_) => const FlLine(color: Colors.black12),
+                getDrawingHorizontalLine: (_) => const FlLine(color: Colors.black12, strokeWidth: 1),
               ),
-              borderData: FlBorderData(
-                show: true,
-                border: Border.all(color: Colors.black26),
+              borderData: FlBorderData(show: true, border: Border.all(color: Colors.black26)),
+              lineTouchData: LineTouchData(
+                handleBuiltInTouches: true,
+touchTooltipData: LineTouchTooltipData(
+  getTooltipColor: (spot) => Colors.white.withOpacity(0.95),
+  fitInsideHorizontally: true,
+  fitInsideVertically: true,
+  tooltipPadding: const EdgeInsets.all(8),
+  getTooltipItems: (List<LineBarSpot> spots) {
+    return spots.map((s) {
+      final serie = visibleSourcesList[s.barIndex];
+      final dt = DateTime.fromMillisecondsSinceEpoch(s.x.toInt());
+      
+      // Recuperar valor real (por si necesitas el valor numérico)
+      final dataList = multiData[serie.id]!;
+      final p = dataList.firstWhere(
+        (e) => e.time.millisecondsSinceEpoch.toDouble() == s.x, 
+        orElse: () => dataList.first
+      );
+      
+      // FORMATEO SOLICITADO:
+      // Solo mostramos la fecha/hora y el valor, usando el color de la serie.
+      return LineTooltipItem(
+  // La fecha ahora usará el color de la serie y tamaño 13
+  '${DateFormat('dd/MM HH:mm').format(dt)}\n', 
+  TextStyle(
+    color: serie.color, 
+    fontWeight: FontWeight.bold, 
+    fontSize: 13,
+  ),
+  children: [
+    TextSpan(
+      // El valor numérico hereda el color y tamaño del padre, o lo repetimos para asegurar
+      text: p.value.toStringAsFixed(2), 
+      style: TextStyle(
+        color: serie.color, // Mismo color que la fecha
+        fontWeight: FontWeight.bold, 
+        fontSize: 13, // Mismo tamaño que la fecha
+      ),
+    ),
+  ],
+);
+    }).toList();
+  },
+),
               ),
               titlesData: FlTitlesData(
                 show: true,
@@ -297,69 +348,25 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 30,
-                    interval: intervalMs,
+                    reservedSize: 40,
+                    interval: intervalMs > 0 ? intervalMs : 1,
                     getTitlesWidget: (value, meta) {
                       final dt = DateTime.fromMillisecondsSinceEpoch(value.toInt());
                       return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        child: Text(
-                          DateFormat('HH:mm').format(dt),
-                          style: const TextStyle(fontSize: 10),
+                        meta: meta,
+                        space: 4,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(DateFormat('dd/MM').format(dt), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                            Text(DateFormat('HH:mm').format(dt), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                          ],
                         ),
                       );
                     },
                   ),
                 ),
               ),
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipColor: (group) => Colors.white.withOpacity(0.45),
-                  tooltipPadding: const EdgeInsets.all(8),
-                  tooltipRoundedRadius: 8,
-                  fitInsideHorizontally: true,
-                  fitInsideVertically: true,
-                  getTooltipItems: (List<LineBarSpot> spots) {
-                    return spots.map((LineBarSpot s) {
-                      final serie = visibleSources[s.barIndex];
-                      final list = multiData[serie.id]!;
-
-                      final point = list.firstWhere(
-                          (e) => e.time.millisecondsSinceEpoch.toDouble() == s.x,
-                          orElse: () => list.first);
-
-                      final DateTime time = point.time;
-                      final double valor = point.value;
-
-                      return LineTooltipItem(
-                        '${DateFormat('MM/dd HH:mm').format(time)}\n${valor.toStringAsFixed(2)}',
-                        TextStyle(
-                          color: serie.color,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: RangeSlider(
-            values: RangeValues(xRange!.start - minTime, xRange!.end - minTime),
-            min: 0,
-            max: maxTime - minTime,
-            onChanged: (v) {
-              setState(() {
-                xRange = RangeValues(v.start + minTime, v.end + minTime);
-              });
-            },
-            labels: RangeLabels(
-              DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(xRange!.start.toInt())),
-              DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(xRange!.end.toInt())),
             ),
           ),
         ),
@@ -400,7 +407,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
       final left = (index++).toDouble() * width;
 
       return Positioned(
-        left: left, top: 0, bottom: 35,
+        left: left, top: 0, bottom: 45, // Ajustado por el nuevo tamaño del eje X
         child: CustomPaint(
           size: Size(width, 0),
           painter: YAxisPainter(minY: minY, maxY: maxY, width: width, color: s.color),
@@ -413,10 +420,10 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(t.get('thingSpeakMulti')), actions: [
-        IconButton(icon: const Icon(Icons.camera_alt), onPressed: _takeScreenshot, tooltip: t.get('captureChart')),
-        IconButton(icon: const Icon(Icons.favorite_border, color: Colors.redAccent), onPressed: _saveAsFavorite, tooltip: t.get('saveFavorite')),
-        IconButton(icon: const Icon(Icons.tune), onPressed: _showYAxisSettings, tooltip: t.get('adjustYScales')),
-        IconButton(icon: const Icon(Icons.refresh), onPressed: fetchData, tooltip: t.get('reset')),
+        IconButton(icon: const Icon(Icons.camera_alt), onPressed: _takeScreenshot),
+        IconButton(icon: const Icon(Icons.favorite_border, color: Colors.redAccent), onPressed: _saveAsFavorite),
+        IconButton(icon: const Icon(Icons.tune), onPressed: _showYAxisSettings),
+        IconButton(icon: const Icon(Icons.refresh), onPressed: fetchData),
       ]),
       body: Column(children: [
         _buildDateHeader(),
@@ -426,116 +433,91 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Padding(padding: const EdgeInsets.only(top: 20), child: _buildChartArea()),
         ),
-        if (xRange != null && widestDataList.isNotEmpty) _buildZoomSlider(),
+        if (xRange != null) _buildZoomSlider(),
       ]),
     );
   }
 
   Widget _buildDateHeader() => Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(children: [
-          Expanded(
-              child: ActionChip(
-                  onPressed: () => _selectDate(true),
-                  label: Text('${t.get('start')}: ${DateFormat('dd/MM HH:mm').format(startDate)}'))),
-          const SizedBox(width: 8),
-          Expanded(
-              child: ActionChip(
-                  onPressed: () => _selectDate(false),
-                  label: Text('${t.get('end')}: ${DateFormat('dd/MM HH:mm').format(endDate)}'))),
-        ]),
-      );
+    padding: const EdgeInsets.all(8),
+    child: Row(children: [
+      Expanded(child: ActionChip(onPressed: () => _selectDate(true), label: Text('${t.get('start')}: ${DateFormat('dd/MM HH:mm').format(startDate)}'))),
+      const SizedBox(width: 8),
+      Expanded(child: ActionChip(onPressed: () => _selectDate(false), label: Text('${t.get('end')}: ${DateFormat('dd/MM HH:mm').format(endDate)}'))),
+    ]),
+  );
 
   Widget _buildVisibilityToggles() => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-            children: widget.sources
-                .map((s) => Row(children: [
-                      Checkbox(
-                          value: serieVisible[s.id],
-                          onChanged: (v) => setState(() => serieVisible[s.id] = v ?? true),
-                          activeColor: s.color),
-                      Text(s.displayName,
-                          style: TextStyle(color: s.color, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 15),
-                    ]))
-                .toList()),
-      );
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: widget.sources.map((s) => Row(children: [
+        Checkbox(value: serieVisible[s.id], onChanged: (v) => setState(() => serieVisible[s.id] = v ?? true), activeColor: s.color),
+        Text(s.displayName, style: TextStyle(color: s.color, fontWeight: FontWeight.bold)),
+        const SizedBox(width: 15),
+      ])).toList()
+    ),
+  );
 
-  Widget _buildZoomSlider() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: RangeSlider(
-          values: xRange!,
-          min: xRange!.start,
-          max: xRange!.end,
-          onChanged: (v) => setState(() => xRange = v),
-        ),
-      );
+  Widget _buildZoomSlider() {
+    final allTimes = multiData.values.expand((l) => l.map((e) => e.time.millisecondsSinceEpoch)).toList();
+    if (allTimes.isEmpty) return const SizedBox.shrink();
+    final minT = allTimes.reduce(min).toDouble();
+    final maxT = allTimes.reduce(max).toDouble();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: RangeSlider(
+        values: RangeValues(xRange!.start.clamp(minT, maxT), xRange!.end.clamp(minT, maxT)),
+        min: minT,
+        max: maxT <= minT ? minT + 1 : maxT,
+        onChanged: (v) => setState(() => xRange = v),
+      ),
+    );
+  }
 
   Future<void> _selectDate(bool start) async {
-    final d = await showDatePicker(
-        context: context,
-        initialDate: start ? startDate : endDate,
-        firstDate: DateTime(2020),
-        lastDate: DateTime.now());
+    final d = await showDatePicker(context: context, initialDate: start ? startDate : endDate, firstDate: DateTime(2020), lastDate: DateTime.now());
     if (d == null) return;
-    final tPick = await showTimePicker(
-        context: context, initialTime: TimeOfDay.fromDateTime(start ? startDate : endDate));
+    final tPick = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(start ? startDate : endDate));
     if (tPick == null) return;
     setState(() {
       final nd = DateTime(d.year, d.month, d.day, tPick.hour, tPick.minute);
-      if (start) {
-        startDate = nd;
-      } else {
-        endDate = nd;
-      }
+      if (start) startDate = nd; else endDate = nd;
     });
     fetchData();
   }
 
   void _showYAxisSettings() {
     showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-              title: Text(t.get('adjustYScales')),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: widget.sources
-                      .map((s) => Column(children: [
-                            Text(s.displayName,
-                                style: TextStyle(color: s.color, fontWeight: FontWeight.bold)),
-                            Row(children: [
-                              Expanded(
-                                  child: TextField(
-                                      controller: minControllers[s.id],
-                                      decoration: InputDecoration(labelText: t.get('min')),
-                                      keyboardType: TextInputType.number)),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                  child: TextField(
-                                      controller: maxControllers[s.id],
-                                      decoration: InputDecoration(labelText: t.get('max')),
-                                      keyboardType: TextInputType.number)),
-                            ]),
-                            const Divider(),
-                          ]))
-                      .toList(),
-                ),
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () {
-                      setState(() {
-                        for (var s in widget.sources) {
-                          minValues[s.id] = double.tryParse(minControllers[s.id]!.text);
-                          maxValues[s.id] = double.tryParse(maxControllers[s.id]!.text);
-                        }
-                      });
-                      Navigator.pop(context);
-                    },
-                    child: Text(t.get('apply')))
-              ],
-            ));
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.get('adjustYScales')),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: widget.sources.map((s) => Column(children: [
+              Text(s.displayName, style: TextStyle(color: s.color, fontWeight: FontWeight.bold)),
+              Row(children: [
+                Expanded(child: TextField(controller: minControllers[s.id], decoration: InputDecoration(labelText: t.get('min')), keyboardType: TextInputType.number)),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: maxControllers[s.id], decoration: InputDecoration(labelText: t.get('max')), keyboardType: TextInputType.number)),
+              ]),
+              const Divider(),
+            ])).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () {
+            setState(() {
+              for (var s in widget.sources) {
+                minValues[s.id] = double.tryParse(minControllers[s.id]!.text);
+                maxValues[s.id] = double.tryParse(maxControllers[s.id]!.text);
+              }
+            });
+            Navigator.pop(context);
+          }, child: Text(t.get('apply')))
+        ],
+      )
+    );
   }
 }

@@ -9,18 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-
-  fl_chart: ^0.69.0
+  fl_chart: ^1.1.1
   http: ^1.2.0
   intl: ^0.20.2
   shared_preferences: ^2.2.3
   url_launcher: ^6.2.1
-  
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
   package_info_plus: ^9.0.0
+  file_picker: ^8.0.0
+  image_gallery_saver: ^2.0.3
+  path_provider: ^2.1.0
+  universal_html: ^2.3.0
+
 
 flutter:
   uses-material-design: true

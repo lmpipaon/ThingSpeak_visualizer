@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert'; 
 import 'dart:async'; // Necesario para el Timer
 
 import '../models/channel.dart';
@@ -8,9 +7,9 @@ import '../models/chart_source.dart';
 import '../models/favorite_config.dart'; 
 import '../services/thingspeak_service.dart';
 import '../localization/translations.dart';
-import '../constants/app_constants.dart';
 
-import '../screens/settings/api_keys_config_screen.dart';
+
+
 import 'multi_field_chart_screen.dart';
 import 'settings/settings_screen.dart';
 
@@ -76,11 +75,11 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     if (mounted) {
       // 2. Creamos el SnackBar
       final snack = SnackBar(
-        content: Text("${t.get('deleted') ?? 'Eliminado'}: ${deletedFav.name}"),
+        content: Text("${t.get('deleted')}: ${deletedFav.name}"),
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
-          label: t.get('undo') ?? "DESHACER",
+          label: t.get('undo'),
           onPressed: () {
             setState(() {
               favorites.insert(index, deletedFav);
@@ -205,13 +204,13 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                 : null;
             
             return AlertDialog(
-              title: Text(t.get('add_source_title') ?? "Añadir Fuente"),
+              title: Text(t.get('add_source_title')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButton<Channel>(
                     isExpanded: true,
-                    hint: Text(t.get('select_channel_hint') ?? "Selecciona Canal"),
+                    hint: Text(t.get('select_channel_hint')),
                     value: selectedChannel,
                     items: channels.map((channel) => DropdownMenuItem(value: channel, child: Text(channel.name))).toList(),
                     onChanged: (value) {
@@ -225,7 +224,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                   if (selectedChannel != null && fields != null)
                     DropdownButton<String>(
                       isExpanded: true,
-                      hint: Text(t.get('select_field_hint') ?? "Selecciona Campo"),
+                      hint: Text(t.get('select_field_hint')),
                       value: selectedField,
                       items: fields.keys.map((fieldName) => DropdownMenuItem(value: fieldName, child: Text(fieldName))).toList(),
                       onChanged: (value) => setDialogState(() => selectedField = value),
@@ -233,7 +232,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                 ],
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(t.get('cancel') ?? "Cancelar")),
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(t.get('cancel'))),
                 ElevatedButton(
                   onPressed: selectedChannel != null && selectedField != null
                       ? () {
@@ -251,7 +250,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                           Navigator.pop(context);
                         }
                       : null,
-                  child: Text(t.get('save') ?? "Añadir"),
+                  child: Text(t.get('save')),
                 ),
               ],
             );
@@ -286,7 +285,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.get('select_channel') ?? "Configurar Gráfica"),
+        title: Text(t.get('select_channel')),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -315,14 +314,14 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                   ExpansionTile(
                     initiallyExpanded: true, 
                     leading: const Icon(Icons.star, color: Colors.amber),
-                    title: Text("${t.get('favorites') ?? 'Favoritos'} (${favorites.length})"),
+                    title: Text("${t.get('favorites')} (${favorites.length})"),
                     children: favorites.asMap().entries.map((entry) {
                       int idx = entry.key;
                       FavoriteConfig fav = entry.value;
                       return ListTile(
                         key: ValueKey(fav.name + idx.toString()),
                         title: Text(fav.name),
-                        subtitle: Text("${fav.sources.length} ${t.get('sources') ?? 'fuentes'}"),
+                        subtitle: Text("${fav.sources.length} ${t.get('sources')}"),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                           onPressed: () => _deleteFavorite(idx),
@@ -338,7 +337,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      Text(t.get('sources_to_compare') ?? "Fuentes a graficar", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(t.get('sources_to_compare'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       ...selectedSources.map((source) => ListTile(
                         leading: Icon(Icons.circle, color: source.color),
                         title: Text(source.displayName),
@@ -349,7 +348,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                       TextButton.icon(
                         onPressed: _addSource,
                         icon: const Icon(Icons.add),
-                        label: Text(t.get('add_new_source') ?? "Añadir Fuente"),
+                        label: Text(t.get('add_new_source')),
                       ),
                     ],
                   ),
@@ -360,7 +359,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                   child: ElevatedButton(
                     onPressed: selectedSources.isNotEmpty ? _goToChart : null,
                     style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                    child: Text(t.get('generate_chart_button') ?? "GENERAR GRÁFICA"),
+                    child: Text(t.get('generate_chart_button')),
                   ),
                 ),
               ],
