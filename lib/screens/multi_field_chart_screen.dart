@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:gal/gal.dart';
+
 import '../models/chart_data.dart';
 import '../models/chart_source.dart';
 import '../models/favorite_config.dart';
@@ -18,7 +20,6 @@ import 'dart:typed_data';
 import 'dart:io' show File, Platform; 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:universal_html/html.dart' as html;
 
 // ------------------- PAINTER DE EJES Y (MULTIESCALA EXTERNA) -------------------
@@ -184,10 +185,22 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
         html.Url.revokeObjectUrl(url);
         _showSuccessSnackBar("Descarga iniciada");
       } else {
-        if (Platform.isAndroid || Platform.isIOS) {
-          final result = await ImageGallerySaver.saveImage(pngBytes, name: fileName, quality: 100);
-          if (result['isSuccess']) _showSuccessSnackBar("Imagen guardada en la Galería");
-        } 
+if (Platform.isAndroid || Platform.isIOS) {
+  try {
+    await Gal.putImageBytes(pngBytes, name: fileName);
+    
+    // Si el código llega a esta línea, es que no hubo error
+    _showSuccessSnackBar("Imagen guardada en la Galería");
+    
+  } catch (e) {
+    // Si hay un error (permisos, falta de espacio, etc.) se captura aquí
+    debugPrint('Error al guardar la imagen: $e');
+    // Opcional: mostrar un mensaje de error al usuario
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error al guardar: $e")),
+    );
+  }
+}
         else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
           String? outputFile = await FilePicker.platform.saveFile(
             dialogTitle: '¿Dónde quieres guardar el gráfico?',
@@ -273,7 +286,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
         spots: spots,
         isCurved: false,
         color: s.color,
-        barWidth: 3,
+        barWidth: 1,
         dotData: const FlDotData(show: false),
       ));
     }
@@ -295,51 +308,61 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
                 getDrawingHorizontalLine: (_) => const FlLine(color: Colors.black12, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: true, border: Border.all(color: Colors.black26)),
-              lineTouchData: LineTouchData(
-                handleBuiltInTouches: true,
-touchTooltipData: LineTouchTooltipData(
-  getTooltipColor: (spot) => Colors.white.withOpacity(0.95),
-  fitInsideHorizontally: true,
-  fitInsideVertically: true,
-  tooltipPadding: const EdgeInsets.all(8),
-  getTooltipItems: (List<LineBarSpot> spots) {
-    return spots.map((s) {
-      final serie = visibleSourcesList[s.barIndex];
-      final dt = DateTime.fromMillisecondsSinceEpoch(s.x.toInt());
-      
-      // Recuperar valor real (por si necesitas el valor numérico)
-      final dataList = multiData[serie.id]!;
-      final p = dataList.firstWhere(
-        (e) => e.time.millisecondsSinceEpoch.toDouble() == s.x, 
-        orElse: () => dataList.first
+lineTouchData: LineTouchData(
+  handleBuiltInTouches: true,
+
+
+  getTouchedSpotIndicator:
+      (LineChartBarData barData, List<int> spotIndexes) {
+    return spotIndexes.map((index) {
+      return TouchedSpotIndicatorData(
+        FlLine(
+          color: barData.color,
+          strokeWidth: 1,
+        ),
+        FlDotData(show: false),
       );
-      
-      // FORMATEO SOLICITADO:
-      // Solo mostramos la fecha/hora y el valor, usando el color de la serie.
-      return LineTooltipItem(
-  // La fecha ahora usará el color de la serie y tamaño 13
-  '${DateFormat('dd/MM HH:mm').format(dt)}\n', 
-  TextStyle(
-    color: serie.color, 
-    fontWeight: FontWeight.bold, 
-    fontSize: 13,
-  ),
-  children: [
-    TextSpan(
-      // El valor numérico hereda el color y tamaño del padre, o lo repetimos para asegurar
-      text: p.value.toStringAsFixed(2), 
-      style: TextStyle(
-        color: serie.color, // Mismo color que la fecha
-        fontWeight: FontWeight.bold, 
-        fontSize: 13, // Mismo tamaño que la fecha
-      ),
-    ),
-  ],
-);
     }).toList();
   },
-),
+
+  touchTooltipData: LineTouchTooltipData(
+    getTooltipColor: (_) => Colors.white.withOpacity(0.45),
+    fitInsideHorizontally: true,
+    fitInsideVertically: true,
+    tooltipPadding: const EdgeInsets.all(8),
+    getTooltipItems: (List<LineBarSpot> spots) {
+      return spots.map((s) {
+        final serie = visibleSourcesList[s.barIndex];
+        final dt = DateTime.fromMillisecondsSinceEpoch(s.x.toInt());
+        final dataList = multiData[serie.id]!;
+        final p = dataList.firstWhere(
+          (e) => e.time.millisecondsSinceEpoch.toDouble() == s.x,
+          orElse: () => dataList.first,
+        );
+
+        return LineTooltipItem(
+          '${DateFormat('dd/MM HH:mm').format(dt)}\n',
+          TextStyle(
+            color: serie.color,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+          children: [
+            TextSpan(
+              text: p.value.toStringAsFixed(2),
+              style: TextStyle(
+                color: serie.color,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
               ),
+            ),
+          ],
+        );
+      }).toList();
+    },
+  ),
+),
+
               titlesData: FlTitlesData(
                 show: true,
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),

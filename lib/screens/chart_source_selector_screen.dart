@@ -113,7 +113,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
       MaterialPageRoute(
         builder: (context) => MultiFieldChartScreen(
           sources: favorite.sources,
-          start: DateTime.now().subtract(const Duration(hours: 6)),
+          start: DateTime.now().subtract(const Duration(hours: 24)),
           end: DateTime.now(),
           language: widget.language,
           initialMin: favorite.minValues, 
