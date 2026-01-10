@@ -29,7 +29,7 @@ class Translations {
       'about_title': 'Acerca de', 
       'author': 'Autor', 
       'github_link': 'Código Fuente (GitHub)', 
-      'reset_config_full': 'Resetear TODA la Configuración (API Keys y Idioma)', 
+      'reset_config_full': 'Resetear TODA la Configuración (API Keys e Idioma)', 
       'reset_config_warning': 'Esto eliminará tus API Keys e idioma guardados y te llevará a la configuración inicial.',
       'sources_to_plot': 'Datos para el gráfico',
       'chart_comparison_title': 'Gráfica',
@@ -46,7 +46,6 @@ class Translations {
       'dual_axis_note': 'Nota: El primer campo (arriba) usará el eje Y izquierdo. Los demás usarán el eje Y derecho.',
       'generate_chart_button': 'Generar Gráfica',
       'value_separator': ': ',
-      // Nuevos añadidos para tu pantalla de gráficas
       'thingSpeakMulti': 'ThingSpeak Multiescala',
       'captureChart': 'Capturar Gráfico',
       'saveFavorite': 'Guardar favorito',
@@ -61,6 +60,11 @@ class Translations {
       'from': 'De:',
       'to': 'A:',
       'noDataInRange': 'Sin datos en este rango',
+      'fullScreen': 'Pantalla completa',
+      'exitFullScreen': 'Salir de pantalla completa',
+      'showScales': 'Mostrar escalas Y',
+      'hideScales': 'Ocultar escalas Y',
+      'favoriteSaved': 'Configuración guardada en favoritos',
     },
     'en': {
       'favorites': 'Favorites',
@@ -105,7 +109,6 @@ class Translations {
       'dual_axis_note': 'Note: The first field (top) will use the left Y-axis. The others will use the right Y-axis.',
       'generate_chart_button': 'Generate Chart',
       'value_separator': ': ',
-      // Nuevos añadidos
       'thingSpeakMulti': 'ThingSpeak Multi-scale',
       'captureChart': 'Capture Chart',
       'saveFavorite': 'Save favorite',
@@ -120,6 +123,11 @@ class Translations {
       'from': 'From:',
       'to': 'To:',
       'noDataInRange': 'No data in this range',
+      'fullScreen': 'Full screen',
+      'exitFullScreen': 'Exit full screen',
+      'showScales': 'Show Y scales',
+      'hideScales': 'Hide Y scales',
+      'favoriteSaved': 'Configuration saved to favorites',
     },
     'eu': {
       'favorites': 'Gogokoak',
@@ -164,7 +172,6 @@ class Translations {
       'dual_axis_note': 'Oharra: Lehen eremuak (goikoa) ezkerreko Y ardatza erabiliko du. Besteek eskuineko Y ardatza erabiliko dute.',
       'generate_chart_button': 'Grafikoa Sortu',
       'value_separator': ': ',
-      // Nuevos añadidos
       'thingSpeakMulti': 'ThingSpeak Multi-eskala',
       'captureChart': 'Grafikoa Harrapatu',
       'saveFavorite': 'Gogokoa gorde',
@@ -179,6 +186,11 @@ class Translations {
       'from': 'Hasi:',
       'to': 'Amaitu:',
       'noDataInRange': 'Ez dago daturik barrutirako',
+      'fullScreen': 'Pantaila osoa',
+      'exitFullScreen': 'Pantaila osotik irten',
+      'showScales': 'Y eskalak erakutsi',
+      'hideScales': 'Y eskalak ezkutatu',
+      'favoriteSaved': 'Konfigurazioa gogokoetan gorde da',
     },
   };
 

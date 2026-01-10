@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 import 'chart_source_selector_screen.dart';
 import '../localization/translations.dart';
@@ -12,7 +13,7 @@ class InitialLoader extends StatefulWidget {
 }
 
 class _InitialLoaderState extends State<InitialLoader> {
-  // 1. CAMBIO AQUÍ: Inicialización a 'en'
+  // Inicialización a 'en' por defecto
   String language = 'en'; 
   List<String> userApiKeys = [];
   bool _isLoading = true;
@@ -33,24 +34,18 @@ class _InitialLoaderState extends State<InitialLoader> {
 
   Future<void> _loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
-    // --- AÑADE ESTA LÍNEA SOLO UNA VEZ ---
-     //await prefs.remove('favorites_list'); 
-    // -------------------------------------
-    // 2. CAMBIO AQUÍ: Fallback de SharedPreferences a 'en'
-
-// Esto simula un 'cat' imprimiendo el contenido en tu terminal de Flutter
-  List<String>? rawFavs = prefs.getStringList('favorites_list');
-  
-  print("========= CONTENIDO DEL REGISTRO (FAVORITOS) =========");
-  if (rawFavs == null || rawFavs.isEmpty) {
-    print("El registro está vacío o la clave no existe.");
-  } else {
-    for (var f in rawFavs) {
-      print(f); // Aquí verás el JSON puro
+    
+    // Debug de favoritos en consola
+    List<String>? rawFavs = prefs.getStringList('favorites_list');
+    print("========= CONTENIDO DEL REGISTRO (FAVORITOS) =========");
+    if (rawFavs == null || rawFavs.isEmpty) {
+      print("El registro está vacío o la clave no existe.");
+    } else {
+      for (var f in rawFavs) {
+        print(f); 
+      }
     }
-  }
-  print("======================================================");
-
+    print("======================================================");
 
     language = prefs.getString('language') ?? 'en'; 
     userApiKeys = prefs.getStringList('apiKeys') ?? [];
@@ -88,27 +83,33 @@ class _InitialLoaderState extends State<InitialLoader> {
           t = Translations(tempLang);
           return AlertDialog(
             title: Text(t.get('initial_config')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _apiController,
-                  decoration: InputDecoration(labelText: t.get('api_keys')),
-                ),
-                const SizedBox(height: 10),
-                for (final lang in const [
-                  // 3. CAMBIO AQUÍ: Poner 'en' primero y cambiar el texto 'Español' si quieres.
-                  {'id': 'en', 'label': 'English'},
-                  {'id': 'es', 'label': 'Español'}, 
-                  {'id': 'eu', 'label': 'Euskara'},
-                ])
-                  RadioListTile<String>(
-                    title: Text(lang['label']!),
-                    value: lang['id']!,
-                    groupValue: tempLang,
-                    onChanged: (v) => setDialogState(() => tempLang = v!),
+            // Usamos SingleChildScrollView para que el teclado no oculte el contenido
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _apiController,
+                    decoration: InputDecoration(
+                      labelText: t.get('api_keys'),
+                      hintText: "Key1, Key2...",
+                    ),
                   ),
-              ],
+                  const SizedBox(height: 20),
+                  for (final lang in const [
+                    {'id': 'en', 'label': 'English'},
+                    {'id': 'es', 'label': 'Español'}, 
+                    {'id': 'eu', 'label': 'Euskara'},
+                  ])
+                    RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(lang['label']!),
+                      value: lang['id']!,
+                      groupValue: tempLang,
+                      onChanged: (v) => setDialogState(() => tempLang = v!),
+                    ),
+                ],
+              ),
             ),
             actions: [
               ElevatedButton(
@@ -152,8 +153,13 @@ class _InitialLoaderState extends State<InitialLoader> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: _isLoading ? const CircularProgressIndicator() : const SizedBox(),
+      // SafeArea protege contra notches y barras de sistema
+      body: SafeArea(
+        child: Center(
+          child: _isLoading 
+              ? const CircularProgressIndicator() 
+              : const SizedBox(),
+        ),
       ),
     );
   }

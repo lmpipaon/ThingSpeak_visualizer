@@ -1,14 +1,11 @@
-// ignore_for_file: deprecated_member_use
-
+import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:gal/gal.dart';
+import 'dart:typed_data';
+import 'dart:io' show File, Platform;
 
 import '../models/chart_data.dart';
 import '../models/chart_source.dart';
@@ -16,58 +13,10 @@ import '../models/favorite_config.dart';
 import '../services/thingspeak_service.dart';
 import '../localization/translations.dart';
 
-import 'dart:typed_data';
-import 'dart:io' show File, Platform; 
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:file_picker/file_picker.dart';
-import 'package:universal_html/html.dart' as html;
+// NUEVOS IMPORTS DE LA ESTRUCTURA DIVIDIDA
+import 'multi_chart/chart_widgets.dart';
+import 'multi_chart/settings_dialog.dart';
 
-// ------------------- PAINTER DE EJES Y (MULTIESCALA EXTERNA) -------------------
-class YAxisPainter extends CustomPainter {
-  final double minY;
-  final double maxY;
-  final double width;
-  final Color color;
-
-  YAxisPainter({
-    required this.minY,
-    required this.maxY,
-    required this.width,
-    required this.color,
-  });
-
-  double normalize(double value) => (maxY == minY) ? 0.5 : (value - minY) / (maxY - minY);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintGrid = Paint()..color = color.withOpacity(0.1)..strokeWidth = 0.5;
-    final paintLine = Paint()..color = color..strokeWidth = 2;
-
-    final values = [minY, minY + (maxY - minY) * 0.5, maxY];
-
-    for (var v in values) {
-      final y = size.height * (1 - normalize(v));
-      canvas.drawLine(Offset(width - 5, y), Offset(size.width * 20, y), paintGrid);
-
-      final tp = TextPainter(
-        text: TextSpan(
-          text: v.toStringAsFixed(1),
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
-        ),
-        textAlign: TextAlign.right,
-        textDirection: ui.TextDirection.ltr,
-      )..layout(maxWidth: width - 8);
-      
-      tp.paint(canvas, Offset(0, y - tp.height / 2));
-    }
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width, size.height), paintLine);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// ------------------- PANTALLA PRINCIPAL -------------------
 class MultiFieldChartScreen extends StatefulWidget {
   final List<ChartSource> sources;
   final DateTime start;
@@ -92,21 +41,20 @@ class MultiFieldChartScreen extends StatefulWidget {
 
 class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   final GlobalKey _boundaryKey = GlobalKey();
-  
   late DateTime startDate;
   late DateTime endDate;
   bool _isLoadingData = true;
+  bool _isFullScreen = false;
+  bool _showYAxes = true;
   final ThingSpeakService service = ThingSpeakService();
-  
   Map<String, List<ChartData>> multiData = {};
   RangeValues? xRange;
-
+  
   final Map<String, double?> minValues = {};
   final Map<String, double?> maxValues = {};
   final Map<String, TextEditingController> minControllers = {};
   final Map<String, TextEditingController> maxControllers = {};
   Map<String, bool> serieVisible = {};
-
   late Translations t;
 
   @override
@@ -138,91 +86,226 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     setState(() {
       _isLoadingData = true;
       multiData.clear();
-      xRange = null; 
+      xRange = null;
     });
-
     try {
       for (var s in widget.sources) {
         final data = await service.getFieldValuesWithTime(
-          s.channel, s.fieldX, start: startDate, end: endDate, results: 8000,
+          s.channel, 
+          s.fieldX, 
+          start: startDate, 
+          end: endDate, 
+          results: 8000
         );
         multiData[s.id] = data;
       }
-
       final allTimes = multiData.values
           .expand((list) => list.map((e) => e.time.millisecondsSinceEpoch))
           .toList();
-
+          
       if (allTimes.isNotEmpty) {
         final minX = allTimes.reduce(min).toDouble();
         final maxX = allTimes.reduce(max).toDouble();
         setState(() => xRange = RangeValues(minX, maxX));
       }
-
     } catch (e) {
-      debugPrint("${t.get('error_data_load')}: $e");
+      debugPrint("Error cargando datos: $e");
     } finally {
       if (mounted) setState(() => _isLoadingData = false);
     }
   }
 
-  Future<void> _takeScreenshot() async {
-    try {
-      RenderRepaintBoundary boundary = _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData == null) return;
-      Uint8List pngBytes = byteData.buffer.asUint8List();
+  void _showSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => SettingsDialog(
+        t: t,
+        startDate: startDate,
+        endDate: endDate,
+        sources: widget.sources,
+        minControllers: minControllers,
+        maxControllers: maxControllers,
+        onSelectDate: _selectDate,
+        onApply: () {
+          setState(() {
+            for (var s in widget.sources) {
+              minValues[s.id] = double.tryParse(minControllers[s.id]!.text);
+              maxValues[s.id] = double.tryParse(maxControllers[s.id]!.text);
+            }
+          });
+          fetchData();
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
-      String fileName = "ThingSpeak_Chart_${DateTime.now().millisecondsSinceEpoch}.png";
-
-      if (kIsWeb) {
-        final blob = html.Blob([pngBytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        html.AnchorElement(href: url)
-          ..setAttribute("download", fileName)
-          ..click();
-        html.Url.revokeObjectUrl(url);
-        _showSuccessSnackBar("Descarga iniciada");
+  @override
+@override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(_isFullScreen ? 0.0 : 32.0),
+        child: _isFullScreen
+            ? const SizedBox.shrink()
+            : Container(
+                padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                color: Theme.of(context).primaryColor,
+                child: SizedBox(
+                  height: 32.0,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.arrow_back, size: 18, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          t.get('thingSpeakMulti'),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _buildCompactAction(
+                        icon: _showYAxes ? Icons.align_horizontal_left : Icons.dehaze,
+                        onTap: () => setState(() => _showYAxes = !_showYAxes),
+                      ),
+                      _buildCompactAction(
+                        icon: _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+onTap: () {
+  setState(() {
+    _isFullScreen = !_isFullScreen;
+    
+    // Solo ejecutamos esto si estamos en Android o iOS
+    if (Platform.isAndroid || Platform.isIOS) {
+      if (_isFullScreen) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       } else {
-if (Platform.isAndroid || Platform.isIOS) {
-  try {
-    await Gal.putImageBytes(pngBytes, name: fileName);
-    
-    // Si el código llega a esta línea, es que no hubo error
-    _showSuccessSnackBar("Imagen guardada en la Galería");
-    
-  } catch (e) {
-    // Si hay un error (permisos, falta de espacio, etc.) se captura aquí
-    debugPrint('Error al guardar la imagen: $e');
-    // Opcional: mostrar un mensaje de error al usuario
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error al guardar: $e")),
-    );
-  }
-}
-        else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-          String? outputFile = await FilePicker.platform.saveFile(
-            dialogTitle: '¿Dónde quieres guardar el gráfico?',
-            fileName: fileName,
-            type: FileType.custom,
-            allowedExtensions: ['png'],
-          );
-          if (outputFile != null) {
-            await File(outputFile).writeAsBytes(pngBytes);
-            _showSuccessSnackBar("Guardado en: $outputFile");
-          }
-        }
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       }
-    } catch (e) {
-      _showSuccessSnackBar("Error al intentar guardar la captura");
     }
+  });
+},
+                      ),
+                      _buildCompactAction(
+                        icon: Icons.favorite_border,
+                        onTap: _saveAsFavorite,
+                      ),
+                      _buildCompactAction(
+                        icon: Icons.tune,
+                        onTap: _showSettings,
+                      ),
+                      _buildCompactAction(
+                        icon: Icons.refresh,
+                        onTap: fetchData,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+      // CAMBIO CLAVE: El SafeArea debe desactivarse en FullScreen
+      body: SafeArea(
+        top: !_isFullScreen,
+        bottom: !_isFullScreen,
+        left: !_isFullScreen,
+        right: !_isFullScreen,
+        child: Column(children: [
+          if (!_isFullScreen) _buildVisibilityToggles(),
+          Expanded(
+            child: _isLoadingData
+                ? const Center(child: CircularProgressIndicator())
+                : Padding(
+                    padding: EdgeInsets.only(top: _isFullScreen ? 0 : 10),
+                    child: ChartView(
+                      sources: widget.sources,
+                      multiData: multiData,
+                      xRange: xRange!,
+                      serieVisible: serieVisible,
+                      minValues: minValues,
+                      maxValues: maxValues,
+                      boundaryKey: _boundaryKey,
+                      isFullScreen: _isFullScreen,
+                      showYAxes: _showYAxes,
+                    ),
+                  ),
+          ),
+          if (xRange != null) _buildZoomSlider(),
+        ]),
+      ),
+    );
   }
 
-  void _showSuccessSnackBar(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), duration: const Duration(seconds: 3), behavior: SnackBarBehavior.floating),
+  Widget _buildCompactAction({required IconData icon, required VoidCallback onTap}) {
+  return SizedBox(
+    width: 36, // Ancho mínimo para clic
+    child: IconButton(
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      icon: Icon(icon, size: 18, color: Colors.white),
+      onPressed: onTap,
+    ),
+  );
+}
+
+  Widget _buildVisibilityToggles() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        child: Wrap(
+          spacing: 8.0,
+          children: widget.sources.map((s) => FilterChip(
+                label: Text(s.displayName,
+                    style: TextStyle(
+                        color: (serieVisible[s.id] ?? true) ? Colors.white : s.color,
+                        fontSize: 12)),
+                selected: serieVisible[s.id] ?? true,
+                selectedColor: s.color,
+                onSelected: (v) => setState(() => serieVisible[s.id] = v),
+              )).toList(),
+        ),
+      );
+
+  Widget _buildZoomSlider() {
+    final allTimes = multiData.values
+        .expand((l) => l.map((e) => e.time.millisecondsSinceEpoch))
+        .toList();
+    if (allTimes.isEmpty) return const SizedBox.shrink();
+    
+    final minT = allTimes.reduce(min).toDouble();
+    final maxT = allTimes.reduce(max).toDouble();
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+          horizontal: 20, 
+          vertical: _isFullScreen ? 4 : 10
+      ),
+      child: RangeSlider(
+        values: xRange!,
+        min: minT,
+        max: maxT <= minT ? minT + 1 : maxT,
+        onChanged: (v) => setState(() => xRange = v),
+      ),
     );
+  }
+
+  Future<void> _selectDate(bool start) async {
+    final d = await showDatePicker(
+        context: context,
+        initialDate: start ? startDate : endDate,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now());
+    if (d == null) return;
+    final tPick = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(start ? startDate : endDate));
+    if (tPick == null) return;
+    setState(() {
+      final nd = DateTime(d.year, d.month, d.day, tPick.hour, tPick.minute);
+      if (start) startDate = nd; else endDate = nd;
+    });
   }
 
   Future<void> _saveAsFavorite() async {
@@ -231,7 +314,10 @@ if (Platform.isAndroid || Platform.isIOS) {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t.get('saveFavorite')),
-        content: TextField(controller: nameController, decoration: InputDecoration(hintText: t.get('favoriteNameHint'))),
+        content: TextField(
+          controller: nameController, 
+          decoration: InputDecoration(hintText: t.get('configurationName'))
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(t.get('cancel'))),
           ElevatedButton(
@@ -244,303 +330,22 @@ if (Platform.isAndroid || Platform.isIOS) {
                   minValues: Map<String, double?>.from(minValues), 
                   maxValues: Map<String, double?>.from(maxValues), 
                 );
+                
                 List<String> favs = prefs.getStringList('favorites_list') ?? [];
                 favs.add(newFavorite.toJson());
                 await prefs.setStringList('favorites_list', favs);
+                
                 if (!mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${nameController.text}" ${t.get('saved')}')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('"${nameController.text}" ${t.get('saved')}'))
+                );
               }
             },
             child: Text(t.get('save')),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildChart() {
-    if (xRange == null || multiData.isEmpty) return Center(child: Text(t.get('no_data_available')));
-
-    final List<LineChartBarData> lines = [];
-    final List<ChartSource> visibleSourcesList = [];
-
-    for (var s in widget.sources) {
-      if (serieVisible[s.id] != true) continue;
-      final data = multiData[s.id] ?? [];
-      if (data.isEmpty) continue;
-      visibleSourcesList.add(s);
-
-      final minY = minValues[s.id] ?? data.map((e) => e.value).reduce(min);
-      final maxY = maxValues[s.id] ?? data.map((e) => e.value).reduce(max);
-
-      final spots = data
-          .where((e) => e.time.millisecondsSinceEpoch >= xRange!.start && e.time.millisecondsSinceEpoch <= xRange!.end)
-          .map((e) => FlSpot(
-                e.time.millisecondsSinceEpoch.toDouble(),
-                (maxY == minY) ? 0.5 : (e.value - minY) / (maxY - minY),
-              ))
-          .toList();
-
-      lines.add(LineChartBarData(
-        spots: spots,
-        isCurved: false,
-        color: s.color,
-        barWidth: 1,
-        dotData: const FlDotData(show: false),
-      ));
-    }
-
-    final rangeMs = xRange!.end - xRange!.start;
-    final intervalMs = (rangeMs / 5).ceilToDouble(); // Máximo 5 etiquetas para evitar amontonamiento
-
-    return Column(
-      children: [
-        Expanded(
-          child: LineChart(
-            LineChartData(
-              minY: 0,
-              maxY: 1,
-              lineBarsData: lines,
-              gridData: FlGridData(
-                show: true,
-                horizontalInterval: 0.25,
-                getDrawingHorizontalLine: (_) => const FlLine(color: Colors.black12, strokeWidth: 1),
-              ),
-              borderData: FlBorderData(show: true, border: Border.all(color: Colors.black26)),
-lineTouchData: LineTouchData(
-  handleBuiltInTouches: true,
-
-
-  getTouchedSpotIndicator:
-      (LineChartBarData barData, List<int> spotIndexes) {
-    return spotIndexes.map((index) {
-      return TouchedSpotIndicatorData(
-        FlLine(
-          color: barData.color,
-          strokeWidth: 1,
-        ),
-        FlDotData(show: false),
-      );
-    }).toList();
-  },
-
-  touchTooltipData: LineTouchTooltipData(
-    getTooltipColor: (_) => Colors.white.withOpacity(0.45),
-    fitInsideHorizontally: true,
-    fitInsideVertically: true,
-    tooltipPadding: const EdgeInsets.all(8),
-    getTooltipItems: (List<LineBarSpot> spots) {
-      return spots.map((s) {
-        final serie = visibleSourcesList[s.barIndex];
-        final dt = DateTime.fromMillisecondsSinceEpoch(s.x.toInt());
-        final dataList = multiData[serie.id]!;
-        final p = dataList.firstWhere(
-          (e) => e.time.millisecondsSinceEpoch.toDouble() == s.x,
-          orElse: () => dataList.first,
-        );
-
-        return LineTooltipItem(
-          '${DateFormat('dd/MM HH:mm').format(dt)}\n',
-          TextStyle(
-            color: serie.color,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-          children: [
-            TextSpan(
-              text: p.value.toStringAsFixed(2),
-              style: TextStyle(
-                color: serie.color,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        );
-      }).toList();
-    },
-  ),
-),
-
-              titlesData: FlTitlesData(
-                show: true,
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 40,
-                    interval: intervalMs > 0 ? intervalMs : 1,
-                    getTitlesWidget: (value, meta) {
-                      final dt = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-                      return SideTitleWidget(
-                        meta: meta,
-                        space: 4,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(DateFormat('dd/MM').format(dt), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                            Text(DateFormat('HH:mm').format(dt), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChartArea() {
-    const double axisWidth = 46.0;
-    int visibleCount = widget.sources.where((s) => serieVisible[s.id] == true).length;
-    final double leftPadding = visibleCount * axisWidth;
-
-    return RepaintBoundary(
-      key: _boundaryKey,
-      child: Container(
-        color: Colors.white,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(left: leftPadding + 10, right: 20, bottom: 5),
-              child: _buildChart(),
-            ),
-            ..._buildYAxes(axisWidth),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildYAxes(double width) {
-    int index = 0;
-    return widget.sources.where((s) => serieVisible[s.id] == true).map((s) {
-      final data = multiData[s.id] ?? [];
-      if (data.isEmpty) return const SizedBox.shrink();
-      final minY = minValues[s.id] ?? data.map((e) => e.value).reduce(min);
-      final maxY = maxValues[s.id] ?? data.map((e) => e.value).reduce(max);
-      final left = (index++).toDouble() * width;
-
-      return Positioned(
-        left: left, top: 0, bottom: 45, // Ajustado por el nuevo tamaño del eje X
-        child: CustomPaint(
-          size: Size(width, 0),
-          painter: YAxisPainter(minY: minY, maxY: maxY, width: width, color: s.color),
-        ),
-      );
-    }).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(t.get('thingSpeakMulti')), actions: [
-        IconButton(icon: const Icon(Icons.camera_alt), onPressed: _takeScreenshot),
-        IconButton(icon: const Icon(Icons.favorite_border, color: Colors.redAccent), onPressed: _saveAsFavorite),
-        IconButton(icon: const Icon(Icons.tune), onPressed: _showYAxisSettings),
-        IconButton(icon: const Icon(Icons.refresh), onPressed: fetchData),
-      ]),
-      body: Column(children: [
-        _buildDateHeader(),
-        _buildVisibilityToggles(),
-        Expanded(
-          child: _isLoadingData
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(padding: const EdgeInsets.only(top: 20), child: _buildChartArea()),
-        ),
-        if (xRange != null) _buildZoomSlider(),
-      ]),
-    );
-  }
-
-  Widget _buildDateHeader() => Padding(
-    padding: const EdgeInsets.all(8),
-    child: Row(children: [
-      Expanded(child: ActionChip(onPressed: () => _selectDate(true), label: Text('${t.get('start')}: ${DateFormat('dd/MM HH:mm').format(startDate)}'))),
-      const SizedBox(width: 8),
-      Expanded(child: ActionChip(onPressed: () => _selectDate(false), label: Text('${t.get('end')}: ${DateFormat('dd/MM HH:mm').format(endDate)}'))),
-    ]),
-  );
-
-  Widget _buildVisibilityToggles() => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: widget.sources.map((s) => Row(children: [
-        Checkbox(value: serieVisible[s.id], onChanged: (v) => setState(() => serieVisible[s.id] = v ?? true), activeColor: s.color),
-        Text(s.displayName, style: TextStyle(color: s.color, fontWeight: FontWeight.bold)),
-        const SizedBox(width: 15),
-      ])).toList()
-    ),
-  );
-
-  Widget _buildZoomSlider() {
-    final allTimes = multiData.values.expand((l) => l.map((e) => e.time.millisecondsSinceEpoch)).toList();
-    if (allTimes.isEmpty) return const SizedBox.shrink();
-    final minT = allTimes.reduce(min).toDouble();
-    final maxT = allTimes.reduce(max).toDouble();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: RangeSlider(
-        values: RangeValues(xRange!.start.clamp(minT, maxT), xRange!.end.clamp(minT, maxT)),
-        min: minT,
-        max: maxT <= minT ? minT + 1 : maxT,
-        onChanged: (v) => setState(() => xRange = v),
-      ),
-    );
-  }
-
-  Future<void> _selectDate(bool start) async {
-    final d = await showDatePicker(context: context, initialDate: start ? startDate : endDate, firstDate: DateTime(2020), lastDate: DateTime.now());
-    if (d == null) return;
-    final tPick = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(start ? startDate : endDate));
-    if (tPick == null) return;
-    setState(() {
-      final nd = DateTime(d.year, d.month, d.day, tPick.hour, tPick.minute);
-      if (start) startDate = nd; else endDate = nd;
-    });
-    fetchData();
-  }
-
-  void _showYAxisSettings() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t.get('adjustYScales')),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: widget.sources.map((s) => Column(children: [
-              Text(s.displayName, style: TextStyle(color: s.color, fontWeight: FontWeight.bold)),
-              Row(children: [
-                Expanded(child: TextField(controller: minControllers[s.id], decoration: InputDecoration(labelText: t.get('min')), keyboardType: TextInputType.number)),
-                const SizedBox(width: 10),
-                Expanded(child: TextField(controller: maxControllers[s.id], decoration: InputDecoration(labelText: t.get('max')), keyboardType: TextInputType.number)),
-              ]),
-              const Divider(),
-            ])).toList(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () {
-            setState(() {
-              for (var s in widget.sources) {
-                minValues[s.id] = double.tryParse(minControllers[s.id]!.text);
-                maxValues[s.id] = double.tryParse(maxControllers[s.id]!.text);
-              }
-            });
-            Navigator.pop(context);
-          }, child: Text(t.get('apply')))
-        ],
-      )
     );
   }
 }

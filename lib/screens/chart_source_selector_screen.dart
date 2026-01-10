@@ -280,90 +280,125 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     );
     _loadFavorites(); 
   }
-
-  @override
+  
+@override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.get('select_channel')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () async {
-              final bool? needsReload = await Navigator.push(
-                context, 
-                MaterialPageRoute(
-                  builder: (_) => SettingsScreen(
-                    language: widget.language, 
-                    userApiKeys: widget.userApiKeys
-                  )
-                )
-              );
-              if (needsReload == true && mounted) {
-                _reloadConfigAndChannels();
-              }
-            },
-          ),
-        ],
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+      // 1. Aplicamos la barra ultra fina (32px de alto)
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(32.0),
+        child: Container(
+          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+          color: Theme.of(context).primaryColor,
+          child: SizedBox(
+            height: 32.0,
+            child: Row(
               children: [
-                if (favorites.isNotEmpty)
-                  ExpansionTile(
-                    initiallyExpanded: true, 
-                    leading: const Icon(Icons.star, color: Colors.amber),
-                    title: Text("${t.get('favorites')} (${favorites.length})"),
-                    children: favorites.asMap().entries.map((entry) {
-                      int idx = entry.key;
-                      FavoriteConfig fav = entry.value;
-                      return ListTile(
-                        key: ValueKey(fav.name + idx.toString()),
-                        title: Text(fav.name),
-                        subtitle: Text("${fav.sources.length} ${t.get('sources')}"),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                          onPressed: () => _deleteFavorite(idx),
-                        ),
-                        onTap: () => _loadFavoriteIntoChart(fav),
-                      );
-                    }).toList(),
-                  ),
-                
-                const Divider(),
-
+                const SizedBox(width: 12),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      Text(t.get('sources_to_compare'), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ...selectedSources.map((source) => ListTile(
-                        leading: Icon(Icons.circle, color: source.color),
-                        title: Text(source.displayName),
-                        trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => _removeSource(source.id)),
-                      )).toList(),
-                      
-                      const SizedBox(height: 10),
-                      TextButton.icon(
-                        onPressed: _addSource,
-                        icon: const Icon(Icons.add),
-                        label: Text(t.get('add_new_source')),
-                      ),
-                    ],
+                  child: Text(
+                    t.get('select_channel'),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
-                
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ElevatedButton(
-                    onPressed: selectedSources.isNotEmpty ? _goToChart : null,
-                    style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                    child: Text(t.get('generate_chart_button')),
-                  ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.settings, size: 18, color: Colors.white),
+                  onPressed: () async {
+                    final bool? needsReload = await Navigator.push(
+                      context, 
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(
+                          language: widget.language, 
+                          userApiKeys: widget.userApiKeys
+                        )
+                      )
+                    );
+                    if (needsReload == true && mounted) {
+                      _reloadConfigAndChannels();
+                    }
+                  },
                 ),
+                const SizedBox(width: 8),
               ],
             ),
+          ),
+        ),
+      ),
+      // 2. EL SAFEAREA: Esto es lo que evita que el código se salga de la "zona buena"
+      body: SafeArea(
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  if (favorites.isNotEmpty)
+                    ExpansionTile(
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      visualDensity: VisualDensity.compact,
+                      initiallyExpanded: true, 
+                      leading: const Icon(Icons.star, color: Colors.amber, size: 20),
+                      title: Text("${t.get('favorites')} (${favorites.length})", 
+                        style: const TextStyle(fontSize: 13)),
+                      children: favorites.asMap().entries.map((entry) {
+                        int idx = entry.key;
+                        FavoriteConfig fav = entry.value;
+                        return ListTile(
+                          dense: true, // Hace la lista más compacta
+                          key: ValueKey(fav.name + idx.toString()),
+                          title: Text(fav.name, style: const TextStyle(fontSize: 13)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                            onPressed: () => _deleteFavorite(idx),
+                          ),
+                          onTap: () => _loadFavoriteIntoChart(fav),
+                        );
+                      }).toList(),
+                    ),
+                  
+                  const Divider(height: 1),
+
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(12),
+                      children: [
+                        Text(t.get('sources_to_compare'), 
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ...selectedSources.map((source) => ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          leading: Icon(Icons.circle, color: source.color, size: 12),
+                          title: Text(source.displayName, style: const TextStyle(fontSize: 13)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close, size: 18), 
+                            onPressed: () => _removeSource(source.id)
+                          ),
+                        )).toList(),
+                        
+                        TextButton.icon(
+                          onPressed: _addSource,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(t.get('add_new_source'), style: const TextStyle(fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // 3. El botón inferior ahora siempre estará visible sobre los botones de Android
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: ElevatedButton(
+                      onPressed: selectedSources.isNotEmpty ? _goToChart : null,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 40), // Altura un poco más fina
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(t.get('generate_chart_button')),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }
