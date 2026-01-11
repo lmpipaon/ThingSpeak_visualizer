@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async'; // Necesario para el Timer
+import 'dart:async';
 
 import '../models/channel.dart';
 import '../models/chart_source.dart';
@@ -9,9 +9,9 @@ import '../services/thingspeak_service.dart';
 import '../localization/translations.dart';
 
 
-
 import 'multi_field_chart_screen.dart';
 import 'settings/settings_screen.dart';
+import 'settings/about_screen.dart';
 
 class ChartSourceSelectorScreen extends StatefulWidget {
   final String language;
@@ -47,7 +47,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     _loadFavorites(); 
   }
 
-  // --- LÓGICA DE FAVORITOS (SOLUCIÓN DEFINITIVA SNACKBAR) ---
+  // --- LÓGICA DE FAVORITOS ---
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,7 +63,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     final prefs = await SharedPreferences.getInstance();
     final deletedFav = favorites[index];
 
-    // 1. Limpieza absoluta antes de mostrar nada
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
 
@@ -73,7 +72,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     });
 
     if (mounted) {
-      // 2. Creamos el SnackBar
       final snack = SnackBar(
         content: Text("${t.get('deleted')}: ${deletedFav.name}"),
         duration: const Duration(seconds: 3),
@@ -90,10 +88,8 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
         ),
       );
 
-      // 3. Lo mostramos y programamos un cierre forzado por si el sistema falla
       messenger.showSnackBar(snack);
 
-      // FORZADO MANUAL: Si a los 3.5 segundos sigue ahí, lo matamos por código
       Timer(const Duration(milliseconds: 3500), () {
         if (mounted) {
           messenger.hideCurrentSnackBar();
@@ -123,8 +119,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     );
     _loadFavorites(); 
   }
-
-  // --- FIN LÓGICA ---
 
   Future<void> _reloadConfigAndChannels() async {
     final prefs = await SharedPreferences.getInstance();
@@ -281,10 +275,9 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     _loadFavorites(); 
   }
   
-@override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. Aplicamos la barra ultra fina (32px de alto)
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(32.0),
         child: Container(
@@ -301,6 +294,23 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
+                // --- BOTÓN INFO (ABOUT) ---
+IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.info_outline, size: 18, color: Colors.white),
+                  onPressed: () {
+                    // Navega a tu pantalla profesional de About
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AboutScreen(language: widget.language),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 12),
+                // --- BOTÓN SETTINGS ---
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -326,7 +336,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
           ),
         ),
       ),
-      // 2. EL SAFEAREA: Esto es lo que evita que el código se salga de la "zona buena"
       body: SafeArea(
         child: loading
             ? const Center(child: CircularProgressIndicator())
@@ -344,7 +353,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                         int idx = entry.key;
                         FavoriteConfig fav = entry.value;
                         return ListTile(
-                          dense: true, // Hace la lista más compacta
+                          dense: true, 
                           key: ValueKey(fav.name + idx.toString()),
                           title: Text(fav.name, style: const TextStyle(fontSize: 13)),
                           trailing: IconButton(
@@ -384,13 +393,12 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                     ),
                   ),
                   
-                  // 3. El botón inferior ahora siempre estará visible sobre los botones de Android
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: ElevatedButton(
                       onPressed: selectedSources.isNotEmpty ? _goToChart : null,
                       style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 40), // Altura un poco más fina
+                        minimumSize: const Size(double.infinity, 40),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: Text(t.get('generate_chart_button')),

@@ -2,7 +2,7 @@ class Translations {
   final String lang;
   Translations(this.lang);
 
-  static const Map<String, Map<String, String>> _data = {
+static const Map<String, Map<String, String>> _data = {
     'es': {
       'favorites': 'Favoritos',
       'sources': 'fuentes',
@@ -65,6 +65,13 @@ class Translations {
       'showScales': 'Mostrar escalas Y',
       'hideScales': 'Ocultar escalas Y',
       'favoriteSaved': 'Configuración guardada en favoritos',
+      // NUEVAS CLAVES AÑADIDAS
+      'version_label': 'Versión',
+      'app_description': 'ThingSpeak Visualizer es una herramienta de código abierto diseñada para monitorear datos de sensores IoT en tiempo real con gráficos limpios e intuitivos.',
+      'contact_label': 'Contacto',
+      'send_email': 'Enviarme un email',
+      'view_github': 'Ver en GitHub',
+      'licenses_label': 'Licencias Open Source',
     },
     'en': {
       'favorites': 'Favorites',
@@ -128,6 +135,13 @@ class Translations {
       'showScales': 'Show Y scales',
       'hideScales': 'Hide Y scales',
       'favoriteSaved': 'Configuration saved to favorites',
+      // NUEVAS CLAVES AÑADIDAS
+      'version_label': 'Version',
+      'app_description': 'ThingSpeak Visualizer is an open-source tool designed to monitor and display real-time data from IoT sensors with clean, intuitive charts.',
+      'contact_label': 'Contact',
+      'send_email': 'Send me an email',
+      'view_github': 'View on GitHub',
+      'licenses_label': 'Open Source Licenses',
     },
     'eu': {
       'favorites': 'Gogokoak',
@@ -191,6 +205,13 @@ class Translations {
       'showScales': 'Y eskalak erakutsi',
       'hideScales': 'Y eskalak ezkutatu',
       'favoriteSaved': 'Konfigurazioa gogokoetan gorde da',
+      // NUEVAS CLAVES AÑADIDAS
+      'version_label': 'Bertsioa',
+      'app_description': 'ThingSpeak Visualizer IoT datuen monitorizaziorako tresna irekia da, sentsoreen datuak denbora errealean grafiko garbi eta intuitiboekin ikusteko garatua.',
+      'contact_label': 'Kontaktua',
+      'send_email': 'Emaila bidali',
+      'view_github': 'GitHub-en ikusi',
+      'licenses_label': 'Lizentzia irekiak',
     },
   };
 

@@ -1,11 +1,10 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/services.dart';
 import 'dart:math';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:typed_data';
-import 'dart:io' show File, Platform;
+import 'dart:io' show Platform;
 
 import '../models/chart_data.dart';
 import '../models/chart_source.dart';
@@ -76,9 +75,34 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
 
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     for (var c in minControllers.values) c.dispose();
     for (var c in maxControllers.values) c.dispose();
     super.dispose();
+  }
+
+  void _toggleFullScreen() {
+    setState(() {
+      _isFullScreen = !_isFullScreen;
+      if (_isFullScreen) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      } else {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+    });
   }
 
   Future<void> fetchData() async {
@@ -141,86 +165,78 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   }
 
   @override
-@override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(_isFullScreen ? 0.0 : 32.0),
-        child: _isFullScreen
-            ? const SizedBox.shrink()
-            : Container(
-                padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-                color: Theme.of(context).primaryColor,
-                child: SizedBox(
-                  height: 32.0,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 30,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.arrow_back, size: 18, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+      appBar: _isFullScreen 
+        ? null 
+        : PreferredSize(
+            preferredSize: const Size.fromHeight(32.0),
+            child: Container(
+              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+              color: Theme.of(context).primaryColor,
+              child: SizedBox(
+                height: 32.0,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 30,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.arrow_back, size: 18, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      Expanded(
-                        child: Text(
-                          t.get('thingSpeakMulti'),
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        t.get('thingSpeakMulti'),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      _buildCompactAction(
-                        icon: _showYAxes ? Icons.align_horizontal_left : Icons.dehaze,
-                        onTap: () => setState(() => _showYAxes = !_showYAxes),
-                      ),
-                      _buildCompactAction(
-                        icon: _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-onTap: () {
-  setState(() {
-    _isFullScreen = !_isFullScreen;
-    
-    // Solo ejecutamos esto si estamos en Android o iOS
-    if (Platform.isAndroid || Platform.isIOS) {
-      if (_isFullScreen) {
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      } else {
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      }
-    }
-  });
-},
-                      ),
-                      _buildCompactAction(
-                        icon: Icons.favorite_border,
-                        onTap: _saveAsFavorite,
-                      ),
-                      _buildCompactAction(
-                        icon: Icons.tune,
-                        onTap: _showSettings,
-                      ),
-                      _buildCompactAction(
-                        icon: Icons.refresh,
-                        onTap: fetchData,
-                      ),
-                    ],
-                  ),
+                    ),
+                    _buildCompactAction(
+                      icon: _showYAxes ? Icons.align_horizontal_left : Icons.dehaze,
+                      onTap: () => setState(() => _showYAxes = !_showYAxes),
+                    ),
+                    _buildCompactAction(
+                      icon: Icons.fullscreen,
+                      onTap: _toggleFullScreen,
+                    ),
+                    _buildCompactAction(
+                      icon: Icons.favorite_border,
+                      onTap: _saveAsFavorite,
+                    ),
+                    _buildCompactAction(
+                      icon: Icons.tune,
+                      onTap: _showSettings,
+                    ),
+                    _buildCompactAction(
+                      icon: Icons.refresh,
+                      onTap: fetchData,
+                    ),
+                  ],
                 ),
               ),
-      ),
-      // CAMBIO CLAVE: El SafeArea debe desactivarse en FullScreen
+            ),
+          ),
+      
+      floatingActionButton: _isFullScreen 
+        ? FloatingActionButton.small(
+            backgroundColor: Colors.black.withOpacity(0.4),
+            onPressed: _toggleFullScreen,
+            child: const Icon(Icons.fullscreen_exit, color: Colors.white),
+          )
+        : null,
+
       body: SafeArea(
-        top: !_isFullScreen,
-        bottom: !_isFullScreen,
-        left: !_isFullScreen,
-        right: !_isFullScreen,
         child: Column(children: [
+          // Chips de nombres compactos y horizontales
           if (!_isFullScreen) _buildVisibilityToggles(),
+          
           Expanded(
             child: _isLoadingData
                 ? const Center(child: CircularProgressIndicator())
                 : Padding(
-                    padding: EdgeInsets.only(top: _isFullScreen ? 0 : 10),
+                    padding: EdgeInsets.only(top: _isFullScreen ? 1 : 1),
                     child: ChartView(
                       sources: widget.sources,
                       multiData: multiData,
@@ -241,32 +257,57 @@ onTap: () {
   }
 
   Widget _buildCompactAction({required IconData icon, required VoidCallback onTap}) {
-  return SizedBox(
-    width: 36, // Ancho mínimo para clic
-    child: IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      icon: Icon(icon, size: 18, color: Colors.white),
-      onPressed: onTap,
-    ),
-  );
-}
+    return SizedBox(
+      width: 36,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        icon: Icon(icon, size: 18, color: Colors.white),
+        onPressed: onTap,
+      ),
+    );
+  }
 
-  Widget _buildVisibilityToggles() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-        child: Wrap(
-          spacing: 8.0,
-          children: widget.sources.map((s) => FilterChip(
-                label: Text(s.displayName,
-                    style: TextStyle(
-                        color: (serieVisible[s.id] ?? true) ? Colors.white : s.color,
-                        fontSize: 12)),
-                selected: serieVisible[s.id] ?? true,
-                selectedColor: s.color,
-                onSelected: (v) => setState(() => serieVisible[s.id] = v),
-              )).toList(),
-        ),
-      );
+Widget _buildVisibilityToggles() {
+    return Container(
+      height: 24, // Reducción extrema de altura
+      margin: const EdgeInsets.only(top: 4.0, bottom: 2.0),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        itemCount: widget.sources.length,
+        itemBuilder: (context, index) {
+          final s = widget.sources[index];
+          final isSelected = serieVisible[s.id] ?? true;
+          
+          return Padding(
+            padding: const EdgeInsets.only(right: 4.0),
+            child: GestureDetector(
+              onTap: () => setState(() => serieVisible[s.id] = !isSelected),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  // Usamos opacidad cuando no está seleccionado para ahorrar ruido visual
+                  color: isSelected ? s.color : s.color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4), // Bordes menos redondeados ocupan menos
+                ),
+                child: Text(
+                  s.displayName,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : s.color,
+                    fontSize: 10, // Fuente mínima legible
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildZoomSlider() {
     final allTimes = multiData.values
@@ -280,13 +321,23 @@ onTap: () {
     return Padding(
       padding: EdgeInsets.symmetric(
           horizontal: 20, 
-          vertical: _isFullScreen ? 4 : 10
+          vertical: _isFullScreen ? 0 : 2 
       ),
-      child: RangeSlider(
-        values: xRange!,
-        min: minT,
-        max: maxT <= minT ? minT + 1 : maxT,
-        onChanged: (v) => setState(() => xRange = v),
+      child: SizedBox(
+        height: 30,
+        child: SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+          ),
+          child: RangeSlider(
+            values: xRange!,
+            min: minT,
+            max: maxT <= minT ? minT + 1 : maxT,
+            onChanged: (v) => setState(() => xRange = v),
+          ),
+        ),
       ),
     );
   }

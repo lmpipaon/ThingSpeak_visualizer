@@ -15,7 +15,7 @@ class ChartView extends StatelessWidget {
   final Map<String, double?> maxValues;
   final GlobalKey boundaryKey;
   final bool isFullScreen;
-  final bool showYAxes; // Nueva propiedad
+  final bool showYAxes;
 
   const ChartView({
     super.key,
@@ -35,7 +35,6 @@ class ChartView extends StatelessWidget {
     const double axisWidth = 46.0;
     int visibleCount = sources.where((s) => serieVisible[s.id] == true).length;
     
-    // Si showYAxes es false, usamos un margen mínimo de 10
     final double leftPadding = showYAxes ? (visibleCount * axisWidth) : 10.0;
 
     return RepaintBoundary(
@@ -53,7 +52,6 @@ class ChartView extends StatelessWidget {
               ),
               child: _buildLineChart(),
             ),
-            // Solo dibujamos los ejes si showYAxes es true
             if (showYAxes) ..._buildYAxes(axisWidth),
           ],
         ),
@@ -63,6 +61,7 @@ class ChartView extends StatelessWidget {
 
   Widget _buildLineChart() {
     final List<LineChartBarData> lines = [];
+    final List<ChartSource> activeSources = sources.where((s) => serieVisible[s.id] == true).toList();
 
     for (var s in sources) {
       if (serieVisible[s.id] != true) continue;
@@ -94,6 +93,49 @@ class ChartView extends StatelessWidget {
 
     return LineChart(
       LineChartData(
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            // Fondo blanco con 60% de transparencia
+            getTooltipColor: (LineBarSpot touchedSpot) => Colors.white.withOpacity(0.6),
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            getTooltipItems: (List<LineBarSpot> touchedSpots) {
+              // Ordenar para que siempre aparezcan en el mismo orden de la lista de fuentes
+              final sortedSpots = List<LineBarSpot>.from(touchedSpots)
+                ..sort((a, b) => a.barIndex.compareTo(b.barIndex));
+
+              return sortedSpots.map((barSpot) {
+                // Obtenemos la fuente correspondiente para recuperar los valores reales
+                final s = activeSources[barSpot.barIndex];
+                final data = multiData[s.id] ?? [];
+                final minY = minValues[s.id] ?? data.map((e) => e.value).reduce(min);
+                final maxY = maxValues[s.id] ?? data.map((e) => e.value).reduce(max);
+                
+                // Des-normalizar el valor Y
+                final double realValue = barSpot.y * (maxY - minY) + minY;
+
+                // Formatear valor: >= 1000 sin decimales, < 1000 con 2 decimales
+                final String valueStr = realValue >= 1000 
+                    ? realValue.toStringAsFixed(0) 
+                    : realValue.toStringAsFixed(2);
+
+                // Formatear Fecha y Hora
+                final DateTime dt = DateTime.fromMillisecondsSinceEpoch(barSpot.x.toInt());
+                final String timeStr = DateFormat('dd/MM HH:mm').format(dt);
+
+                return LineTooltipItem(
+                  '$timeStr\n$valueStr',
+                  TextStyle(
+                    color: s.color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
         minY: 0,
         maxY: 1,
         lineBarsData: lines,

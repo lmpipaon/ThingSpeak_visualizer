@@ -4,25 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../localization/translations.dart';
+import '../../constants/app_constants.dart'; 
 
-// ======================================================
-// PANTALLA ACERCA DE (Versión con Email y GitHub)
-// ======================================================
 class AboutScreen extends StatelessWidget {
   final String language;
 
-  // --- CONFIGURACIÓN DE TU INFORMACIÓN ---
-  static const String authorName = 'Luis Pipaon';
-  static const String contactEmail = 'koldo.noa406@barbarbu.fr';
   static const String githubUrl = 'https://github.com/lmpipaon/ThingSpeak_visualizer';
-  static const String appDescription = 
-      'ThingSpeak Visualizer is an open-source tool designed to monitor and display '
-      'real-time data from IoT sensors. Easily connect to your channels and '
-      'visualize your fields with clean, intuitive charts.';
+  static const String mitLicenseUrl = 'https://opensource.org/licenses/MIT';
 
   const AboutScreen({super.key, required this.language});
 
-  // Función para abrir URLs (GitHub)
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -30,26 +21,23 @@ class AboutScreen extends StatelessWidget {
     }
   }
 
-  // Función para enviar Email
   Future<void> _sendEmail() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: contactEmail,
+      path: contactEmail, 
       query: _encodeQueryParameters(<String, String>{
-        'subject': 'Regarding ThingSpeak Visualizer',
+        'subject': 'ThingSpeak Visualizer - Luis Pipaon',
+        'body': 'Kaixo Luis,\n\n', 
       }),
     );
-
-    if (!await launchUrl(emailLaunchUri)) {
-      debugPrint('No se pudo abrir la aplicación de correo');
+    if (await canLaunchUrl(emailLaunchUri)) {
+      await launchUrl(emailLaunchUri);
     }
   }
 
-  // Auxiliar para formatear correctamente los parámetros del email
   String? _encodeQueryParameters(Map<String, String> params) {
     return params.entries
-        .map((MapEntry<String, String> e) =>
-            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
         .join('&');
   }
 
@@ -62,10 +50,18 @@ class AboutScreen extends StatelessWidget {
         title: Text(t.get('about_title')),
         centerTitle: true,
       ),
+      // Usamos FutureBuilder para obtener los datos REALES del pubspec.yaml
       body: FutureBuilder<PackageInfo>(
         future: PackageInfo.fromPlatform(),
         builder: (context, snapshot) {
-          final String version = snapshot.data?.version ?? '1.0.0';
+          // 1. Mientras espera la info del sistema
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // 2. Extraemos los datos (si falla, ponemos un fallback seguro)
+          final String version = snapshot.data?.version ?? '1.2.0';
+          final String buildNumber = snapshot.data?.buildNumber ?? '1';
           
           return SingleChildScrollView(
             child: Padding(
@@ -73,7 +69,6 @@ class AboutScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Icono representativo
                   const Icon(Icons.analytics_outlined, size: 85, color: Colors.blue),
                   const SizedBox(height: 16),
                   
@@ -84,52 +79,49 @@ class AboutScreen extends StatelessWidget {
                         ),
                   ),
                   
+                  // Mostramos Versión + Build (ej: 1.2.0+1)
                   Text(
-                    'Version $version',
+                    '${t.get('version_label')} $version+$buildNumber',
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                   
                   const SizedBox(height: 20),
 
-                  // Descripción técnica
-                  const Text(
-                    appDescription,
+                  Text(
+                    t.get('app_description'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, height: 1.4, color: Colors.black87),
+                    style: const TextStyle(fontSize: 15, height: 1.4, color: Colors.black87),
                   ),
                   
                   const Divider(height: 40, thickness: 1),
 
-                  // --- SECCIÓN: AUTOR ---
                   _buildHeader(context, t.get('author')),
                   const SizedBox(height: 4),
                   Text(authorName, style: Theme.of(context).textTheme.titleMedium),
                   
                   const SizedBox(height: 25),
 
-                  // --- SECCIÓN: CONTACTO (Email) ---
-                  _buildHeader(context, 'Contact'),
+                  _buildHeader(context, t.get('contact_label')),
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: _sendEmail,
                     icon: const Icon(Icons.email_outlined),
-                    label: const Text('Send me an email'),
+                    label: Text(t.get('send_email')),
                   ),
+                  Text(contactEmail, style: const TextStyle(fontSize: 11, color: Colors.grey)),
 
                   const SizedBox(height: 25),
 
-                  // --- SECCIÓN: CÓDIGO FUENTE (GitHub) ---
                   _buildHeader(context, t.get('github_link')),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: () => _launchUrl(githubUrl),
                     icon: const Icon(Icons.code),
-                    label: const Text('View on GitHub'),
+                    label: Text(t.get('view_github')),
                   ),
 
                   const SizedBox(height: 40),
 
-                  // --- BOTÓN DE LICENCIAS ---
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
@@ -140,8 +132,8 @@ class AboutScreen extends StatelessWidget {
                       showLicensePage(
                         context: context,
                         applicationName: 'ThingSpeak Visualizer',
-                        applicationVersion: version,
-                        applicationLegalese: '© 2025 $authorName',
+                        applicationVersion: '$version+$buildNumber',
+                        applicationLegalese: '© 2026 $authorName',
                         applicationIcon: const Padding(
                           padding: EdgeInsets.all(12.0),
                           child: Icon(Icons.bar_chart, size: 48, color: Colors.blue),
@@ -149,14 +141,37 @@ class AboutScreen extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.description_outlined),
-                    label: const Text('Open Source Licenses'),
+                    label: Text(t.get('licenses_label')),
                   ),
                   
-                  const SizedBox(height: 15),
-                  const Text(
-                    'Licensed under MIT License',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  const SizedBox(height: 25),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Licensed under ', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      GestureDetector(
+                        onTap: () => _launchUrl(mitLicenseUrl),
+                        child: const Text(
+                          'MIT License',
+                          style: TextStyle(
+                            color: Colors.blue, 
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  Text(
+                    '© 2026 $authorName',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -166,7 +181,6 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  // Estilo para los títulos de sección
   Widget _buildHeader(BuildContext context, String title) {
     return Text(
       title.toUpperCase(),
