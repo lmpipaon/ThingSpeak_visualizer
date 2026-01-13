@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // Para debugPrint
 import 'package:http/http.dart' as http;
 
 import '../models/channel.dart';
@@ -7,15 +8,44 @@ import '../constants/app_constants.dart';
 
 class ThingSpeakService {
   // ------------------------------------------------------
-  // Obtiene todos los canales de un usuario a partir de su API Key
+  // Obtiene un canal individual (Público o Privado)
+  // ------------------------------------------------------
+  Future<Channel> getChannelById(String channelId, {String? readApiKey}) async {
+    final String keyParam = (readApiKey != null && readApiKey.isNotEmpty)
+        ? '?api_key=$readApiKey'
+        : '';
+
+    final url = Uri.parse('https://api.thingspeak.com/channels/$channelId.json$keyParam');
+    
+    debugPrint('🌐 GET Canal Info: $url'); // DEBUG
+
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      debugPrint('❌ Error en getChannelById: ${response.statusCode}');
+      throw Exception('Error al acceder al canal $channelId');
+    }
+
+    final data = json.decode(response.body);
+    return Channel(
+      id: data['id'].toString(),
+      name: data['name'] ?? 'Canal $channelId',
+      readApiKey: readApiKey ?? '',
+    );
+  }
+
+  // ------------------------------------------------------
+  // Obtiene todos los canales de un usuario (User API Key)
   // ------------------------------------------------------
   Future<List<Channel>> getUserChannels(String userApiKey) async {
     final url = Uri.parse(
       'https://api.thingspeak.com/channels.json?api_key=$userApiKey',
     );
 
+    debugPrint('🌐 GET Canales Usuario: $url'); // DEBUG
+
     final response = await http.get(url);
     if (response.statusCode != 200) {
+      debugPrint('❌ Error en getUserChannels: ${response.statusCode}');
       throw Exception('No se pudieron cargar los canales');
     }
 
@@ -24,42 +54,44 @@ class ThingSpeakService {
 
     for (var channelJson in data) {
       String? readApiKey;
-
-      for (var key in channelJson['api_keys']) {
-        if (key['write_flag'] == false) {
-          readApiKey = key['api_key'];
-          break;
+      if (channelJson['api_keys'] != null) {
+        for (var key in channelJson['api_keys']) {
+          if (key['write_flag'] == false) {
+            readApiKey = key['api_key'];
+            break;
+          }
         }
       }
 
-      if (readApiKey != null) {
-        channels.add(
-          Channel(
-            id: channelJson['id'].toString(),
-            name: channelJson['name'] ?? 'Sin nombre',
-            readApiKey: readApiKey,
-          ),
-        );
-      }
+      channels.add(
+        Channel(
+          id: channelJson['id'].toString(),
+          name: channelJson['name'] ?? 'Sin nombre',
+          readApiKey: readApiKey ?? '',
+        ),
+      );
     }
     return channels;
   }
 
   // ------------------------------------------------------
-  // Obtiene la última lectura del canal para descubrir campos
-  // y mapear fieldName -> fieldX
+  // Mapear fieldName -> fieldX (SOPORTA PÚBLICOS)
   // ------------------------------------------------------
   Future<Map<String, String>> getLastFeed(
     Channel channel,
     Map<String, String> fieldNameToFieldX,
   ) async {
-    final url = Uri.parse(
-      'https://api.thingspeak.com/channels/${channel.id}/feeds.json'
-      '?api_key=${channel.readApiKey}&results=1',
-    );
+    String urlStr = 'https://api.thingspeak.com/channels/${channel.id}/feeds.json?results=1';
+    
+    if (channel.readApiKey.isNotEmpty) {
+      urlStr += '&api_key=${channel.readApiKey}';
+    }
 
-    final response = await http.get(url);
+    debugPrint('🌐 GET LastFeed (Nombres): $urlStr'); // DEBUG
+
+    final response = await http.get(Uri.parse(urlStr));
     if (response.statusCode != 200) {
+      debugPrint('❌ Error en getLastFeed: ${response.statusCode}');
       throw Exception('Error al obtener la última lectura del canal');
     }
 
@@ -67,15 +99,21 @@ class ThingSpeakService {
     final feeds = data['feeds'];
     final channelInfo = data['channel'];
 
-    if (feeds == null || feeds.isEmpty) return {};
+    if (feeds == null || feeds.isEmpty) {
+      debugPrint('⚠️ No hay feeds en el canal ${channel.id}');
+      return {};
+    }
 
     final lastFeed = feeds[0] as Map<String, dynamic>;
     final Map<String, String> fields = {};
 
     lastFeed.forEach((key, value) {
-      if (key.startsWith('field') && value != null) {
-        final fieldName = channelInfo[key] ?? key;
-        fields[fieldName] = value.toString();
+      if (key.startsWith('field')) {
+        final fieldName = (channelInfo != null && channelInfo[key] != null) 
+            ? channelInfo[key].toString() 
+            : key; 
+            
+        fields[fieldName] = value?.toString() ?? "";
         fieldNameToFieldX[fieldName] = key;
       }
     });
@@ -84,7 +122,7 @@ class ThingSpeakService {
   }
 
   // ------------------------------------------------------
-  // Obtiene valores de un campo con fecha/hora
+  // Obtiene valores de un campo (SOPORTA PÚBLICOS)
   // ------------------------------------------------------
   Future<List<ChartData>> getFieldValuesWithTime(
     Channel channel,
@@ -93,24 +131,37 @@ class ThingSpeakService {
     DateTime? end,
     int results = defaultResultsForChart,
   }) async {
-    String urlStr =
-        'https://api.thingspeak.com/channels/${channel.id}/feeds.json'
-        '?api_key=${channel.readApiKey}&results=$results';
+    String urlStr = 'https://api.thingspeak.com/channels/${channel.id}/feeds.json?results=$results';
+
+    if (channel.readApiKey.isNotEmpty) {
+      urlStr += '&api_key=${channel.readApiKey}';
+    }
 
     if (start != null && end != null) {
-      urlStr +=
-          '&start=${Uri.encodeComponent(start.toIso8601String())}'
-          '&end=${Uri.encodeComponent(end.toIso8601String())}';
+      urlStr += '&start=${Uri.encodeComponent(start.toIso8601String())}'
+                '&end=${Uri.encodeComponent(end.toIso8601String())}';
     }
+
+    // ESTE ES EL LINK QUE NECESITAS COPIAR
+    debugPrint('📊 GET Gráfica ($fieldX): $urlStr'); 
 
     final response = await http.get(Uri.parse(urlStr));
     if (response.statusCode != 200) {
+      debugPrint('❌ Error en getFieldValuesWithTime: ${response.statusCode}');
       throw Exception('Error al cargar datos del campo');
     }
 
-    final feeds = json.decode(response.body)['feeds'] as List;
-    final List<ChartData> values = [];
+    final decoded = json.decode(response.body);
+    final feeds = decoded['feeds'] as List?;
+    
+    if (feeds == null) {
+      debugPrint('⚠️ Respuesta sin feeds para campo $fieldX');
+      return [];
+    }
 
+    debugPrint('✅ Datos recibidos para $fieldX: ${feeds.length} puntos');
+
+    final List<ChartData> values = [];
     for (var feed in feeds) {
       final rawValue = feed[fieldX];
       final rawTime = feed['created_at'];

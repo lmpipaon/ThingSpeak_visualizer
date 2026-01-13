@@ -73,6 +73,7 @@ class _InitialLoaderState extends State<InitialLoader> {
 
   Future<void> _showInitialConfig() async {
     String tempLang = language;
+    // Creamos una instancia local de traducciones
     Translations t = Translations(tempLang);
 
     final result = await showDialog<Map<String, dynamic>>(
@@ -80,21 +81,32 @@ class _InitialLoaderState extends State<InitialLoader> {
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
+          // Actualizamos la instancia de traducción si cambia el idioma en el diálogo
           t = Translations(tempLang);
+          
           return AlertDialog(
             title: Text(t.get('initial_config')),
-            // Usamos SingleChildScrollView para que el teclado no oculte el contenido
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: _apiController,
-                    decoration: InputDecoration(
-                      labelText: t.get('api_keys'),
-                      hintText: "Key1, Key2...",
-                    ),
-                  ),
+TextField(
+  controller: _apiController,
+  decoration: InputDecoration(
+    labelText: t.get('api_keys'),
+    hintText: "Key1, Key2...",
+    // El borde ayuda a delimitar el espacio y hace que el icono resalte
+    border: const OutlineInputBorder(), 
+    // Esto coloca el icono dentro del cuadro, a la derecha
+    suffixIcon: Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: IconButton(
+        icon: const Icon(Icons.help_outline, color: Colors.blue, size: 30),
+        onPressed: () => _showApiHelpDialog(context, t),
+      ),
+    ),
+  ),
+),
                   const SizedBox(height: 20),
                   for (final lang in const [
                     {'id': 'en', 'label': 'English'},
@@ -106,7 +118,9 @@ class _InitialLoaderState extends State<InitialLoader> {
                       title: Text(lang['label']!),
                       value: lang['id']!,
                       groupValue: tempLang,
-                      onChanged: (v) => setDialogState(() => tempLang = v!),
+                      onChanged: (v) {
+                        setDialogState(() => tempLang = v!);
+                      },
                     ),
                 ],
               ),
@@ -153,12 +167,72 @@ class _InitialLoaderState extends State<InitialLoader> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // SafeArea protege contra notches y barras de sistema
       body: SafeArea(
         child: Center(
           child: _isLoading 
               ? const CircularProgressIndicator() 
               : const SizedBox(),
+        ),
+      ),
+    );
+  }
+
+  // --- FUNCIÓN DE AYUDA INTEGRADA ---
+  void _showApiHelpDialog(BuildContext context, Translations t) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Row(
+          children: [
+            const Icon(Icons.vpn_key, color: Colors.blue),
+            const SizedBox(width: 10),
+            Text(t.get('api_keys')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Puedes introducir varias llaves separadas por comas:",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 10),
+            _helpItem("Read API Key", "Para leer datos de tus canales privados."),
+            _helpItem("User API Key", "Para listar todos tus canales automáticamente."),
+            const Divider(),
+            const Text(
+              "Ejemplo: ABC123XYZ, 987654QWERTY",
+              style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "Nota: Los canales públicos (como Zekuiano) no necesitan ninguna llave aquí.",
+              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.get('close') ?? 'Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _helpItem(String title, String desc) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.black, fontSize: 13),
+          children: [
+            TextSpan(text: "• $title: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: desc),
+          ],
         ),
       ),
     );

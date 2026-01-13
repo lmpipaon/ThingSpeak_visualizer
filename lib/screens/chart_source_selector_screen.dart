@@ -8,7 +8,6 @@ import '../models/favorite_config.dart';
 import '../services/thingspeak_service.dart';
 import '../localization/translations.dart';
 
-
 import 'multi_field_chart_screen.dart';
 import 'settings/settings_screen.dart';
 import 'settings/about_screen.dart';
@@ -48,7 +47,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
   }
 
   // --- LÓGICA DE FAVORITOS ---
-
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload(); 
@@ -62,7 +60,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
   Future<void> _deleteFavorite(int index) async {
     final prefs = await SharedPreferences.getInstance();
     final deletedFav = favorites[index];
-
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
 
@@ -87,14 +84,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
           },
         ),
       );
-
       messenger.showSnackBar(snack);
-
-      Timer(const Duration(milliseconds: 3500), () {
-        if (mounted) {
-          messenger.hideCurrentSnackBar();
-        }
-      });
     }
   }
 
@@ -134,6 +124,9 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     );
   }
 
+  // ======================================================
+  // LÓGICA DE CARGA ACTUALIZADA (SOPORTA ID:KEY Y PUBLICOS)
+  // ======================================================
   Future<void> loadAllChannelsAndFields() async {
     setState(() {
       loading = true;
@@ -143,33 +136,62 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     });
 
     try {
-      final futures = widget.userApiKeys.map((apiKey) => service.getUserChannels(apiKey));
-      final results = await Future.wait(futures); 
-      
       List<Channel> allChannels = [];
-      for (var userChannels in results) {
-          allChannels.addAll(userChannels);
+
+      // 1. Procesar cada entrada de la lista configurada
+      for (String entry in widget.userApiKeys) {
+        try {
+          if (entry.contains(':')) {
+            // FORMATO CANAL PRIVADO (ID:READ_KEY)
+            final parts = entry.split(':');
+            final channelId = parts[0].trim();
+            final readKey = parts[1].trim();
+            // Creamos un objeto Channel temporal para validarlo
+            allChannels.add(Channel(id: channelId, readApiKey: readKey, name: 'ID: $channelId'));
+          } 
+          else if (RegExp(r'^[0-9]+$').hasMatch(entry)) {
+            // FORMATO CANAL PÚBLICO (Solo ID numérico)
+            allChannels.add(Channel(id: entry, readApiKey: '', name: 'Public ID: $entry'));
+          } 
+          else {
+            // FORMATO USER API KEY (Traer todos sus canales)
+            final userChannels = await service.getUserChannels(entry);
+            allChannels.addAll(userChannels);
+          }
+        } catch (e) {
+          print('Error procesando entrada $entry: $e');
+        }
       }
-      
+
+      // 2. Descubrir campos (Fields) y nombres reales para cada canal encontrado
       List<Future<void>> fieldFutures = [];
+      List<Channel> validatedChannels = [];
+
       for (var channel in allChannels) {
-          fieldFutures.add(() async {
-              try {
-                  Map<String, String> fieldNameToFieldX = {};
-                  await service.getLastFeed(channel, fieldNameToFieldX); 
-                  if (fieldNameToFieldX.isNotEmpty) {
-                    channelFields[channel.id] = fieldNameToFieldX;
-                  }
-              } catch (e) {
-                  print('Error en canal ${channel.name}: $e');
-              }
-          }());
+        fieldFutures.add(() async {
+          try {
+            Map<String, String> fieldNameToFieldX = {};
+            // getLastFeed nos sirve para validar que la Key es correcta y obtener el nombre real del canal
+            final url = Uri.parse(
+              'https://api.thingspeak.com/channels/${channel.id}/feeds.json?api_key=${channel.readApiKey}&results=1'
+            );
+            final response = await service.getLastFeed(channel, fieldNameToFieldX);
+            
+            // Si el canal responde correctamente, lo actualizamos con su nombre real
+            if (fieldNameToFieldX.isNotEmpty) {
+              channelFields[channel.id] = fieldNameToFieldX;
+              validatedChannels.add(channel);
+            }
+          } catch (e) {
+            print('Canal ${channel.id} no disponible o Key inválida: $e');
+          }
+        }());
       }
       await Future.wait(fieldFutures);
       
       if (!mounted) return;
       setState(() {
-        channels = allChannels.where((c) => channelFields.containsKey(c.id)).toList(); 
+        channels = validatedChannels;
         loading = false;
       });
       
@@ -294,13 +316,11 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
-                // --- BOTÓN INFO (ABOUT) ---
-IconButton(
+                IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   icon: const Icon(Icons.info_outline, size: 18, color: Colors.white),
                   onPressed: () {
-                    // Navega a tu pantalla profesional de About
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -310,7 +330,6 @@ IconButton(
                   },
                 ),
                 const SizedBox(width: 12),
-                // --- BOTÓN SETTINGS ---
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),

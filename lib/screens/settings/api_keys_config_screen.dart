@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../localization/translations.dart';
 
-
-// ======================================================
-// PANTALLA DE CONFIGURACIÓN DE API KEYS
-// ======================================================
 class ApiKeysConfigScreen extends StatefulWidget {
   final String language;
   final List<String> userApiKeys;
@@ -29,7 +24,8 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
   void initState() {
     super.initState();
     t = Translations(widget.language);
-    _apiController = TextEditingController(text: widget.userApiKeys.join(','));
+    // Unimos con salto de línea para que al entrar se vea una lista limpia
+    _apiController = TextEditingController(text: widget.userApiKeys.join('\n'));
   }
 
   @override
@@ -38,9 +34,11 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
     super.dispose();
   }
 
+  // --- ÚNICA DECLARACIÓN DE _saveApiKeys ---
   Future<void> _saveApiKeys() async {
+    // Aceptamos comas o saltos de línea al procesar lo que el usuario pegue
     final keys = _apiController.text
-        .split(',')
+        .split(RegExp(r'[,\n]')) 
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
@@ -48,23 +46,20 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
     if (keys.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, introduce al menos una API Key.')),
+        const SnackBar(content: Text('Por favor, introduce al menos una API Key o ID de canal.')),
       );
       return;
     }
     
-    // Verificar si las claves realmente cambiaron
     final bool changed = !listEquals(keys, widget.userApiKeys);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('apiKeys', keys);
 
     if (!mounted) return;
-    // Devolvemos 'true' solo si hubo un cambio real.
     Navigator.pop(context, changed); 
   }
   
-  // Función de ayuda para comparar listas
   bool listEquals<T>(List<T>? a, List<T>? b) {
     if (a == null) return b == null;
     if (b == null || a.length != b.length) return false;
@@ -86,9 +81,12 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
               controller: _apiController,
               decoration: InputDecoration(
                 labelText: t.get('api_keys'),
+                hintText: "UserKey1\nCanalID:ReadKey\nCanalPublicoID",
                 border: const OutlineInputBorder(),
+                alignLabelWithHint: true,
               ),
-              maxLines: null,
+              maxLines: 10, // Permitimos que el cuadro crezca para ver la lista
+              keyboardType: TextInputType.multiline,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
