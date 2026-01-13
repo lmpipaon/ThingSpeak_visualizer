@@ -1,6 +1,6 @@
 name: thingspeak_visualizer
 description: A powerful and lightweight data visualizer for ThingSpeak channels.
-version: 1.2.0+1
+version: 1.2.0+2
 publish_to: 'none'
 
 environment:

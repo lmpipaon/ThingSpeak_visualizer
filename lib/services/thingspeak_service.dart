@@ -17,11 +17,11 @@ class ThingSpeakService {
 
     final url = Uri.parse('https://api.thingspeak.com/channels/$channelId.json$keyParam');
     
-    debugPrint('🌐 GET Canal Info: $url'); // DEBUG
+    // debugPrint('🌐 GET Canal Info: $url'); // DEBUG
 
     final response = await http.get(url);
     if (response.statusCode != 200) {
-      debugPrint('❌ Error en getChannelById: ${response.statusCode}');
+      // debugPrint('❌ Error en getChannelById: ${response.statusCode}');
       throw Exception('Error al acceder al canal $channelId');
     }
 
@@ -41,11 +41,11 @@ class ThingSpeakService {
       'https://api.thingspeak.com/channels.json?api_key=$userApiKey',
     );
 
-    debugPrint('🌐 GET Canales Usuario: $url'); // DEBUG
+    // debugPrint('🌐 GET Canales Usuario: $url'); // DEBUG
 
     final response = await http.get(url);
     if (response.statusCode != 200) {
-      debugPrint('❌ Error en getUserChannels: ${response.statusCode}');
+      // debugPrint('❌ Error en getUserChannels: ${response.statusCode}');
       throw Exception('No se pudieron cargar los canales');
     }
 
@@ -87,11 +87,11 @@ class ThingSpeakService {
       urlStr += '&api_key=${channel.readApiKey}';
     }
 
-    debugPrint('🌐 GET LastFeed (Nombres): $urlStr'); // DEBUG
+    // debugPrint('🌐 GET LastFeed (Nombres): $urlStr'); // DEBUG
 
     final response = await http.get(Uri.parse(urlStr));
     if (response.statusCode != 200) {
-      debugPrint('❌ Error en getLastFeed: ${response.statusCode}');
+      // debugPrint('❌ Error en getLastFeed: ${response.statusCode}');
       throw Exception('Error al obtener la última lectura del canal');
     }
 
@@ -100,7 +100,7 @@ class ThingSpeakService {
     final channelInfo = data['channel'];
 
     if (feeds == null || feeds.isEmpty) {
-      debugPrint('⚠️ No hay feeds en el canal ${channel.id}');
+      // debugPrint('⚠️ No hay feeds en el canal ${channel.id}');
       return {};
     }
 
@@ -143,11 +143,11 @@ class ThingSpeakService {
     }
 
     // ESTE ES EL LINK QUE NECESITAS COPIAR
-    debugPrint('📊 GET Gráfica ($fieldX): $urlStr'); 
+    // debugPrint('📊 GET Gráfica ($fieldX): $urlStr'); 
 
     final response = await http.get(Uri.parse(urlStr));
     if (response.statusCode != 200) {
-      debugPrint('❌ Error en getFieldValuesWithTime: ${response.statusCode}');
+      // debugPrint('❌ Error en getFieldValuesWithTime: ${response.statusCode}');
       throw Exception('Error al cargar datos del campo');
     }
 
@@ -155,11 +155,11 @@ class ThingSpeakService {
     final feeds = decoded['feeds'] as List?;
     
     if (feeds == null) {
-      debugPrint('⚠️ Respuesta sin feeds para campo $fieldX');
+      // debugPrint('⚠️ Respuesta sin feeds para campo $fieldX');
       return [];
     }
 
-    debugPrint('✅ Datos recibidos para $fieldX: ${feeds.length} puntos');
+    // debugPrint('✅ Datos recibidos para $fieldX: ${feeds.length} puntos');
 
     final List<ChartData> values = [];
     for (var feed in feeds) {
