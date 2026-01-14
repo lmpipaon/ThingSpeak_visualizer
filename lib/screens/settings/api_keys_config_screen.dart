@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../localization/translations.dart';
@@ -24,9 +26,10 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
   @override
   void initState() {
     super.initState();
+    // Inicializamos el motor de traducciones con el idioma del widget
     t = Translations(widget.language);
     
-    // LÓGICA DE EJEMPLO: Si la lista está vacía, ponemos el ID de demo 2813413
+    // LÓGICA DE EJEMPLO: Si la lista está vacía, ponemos el ID de demo de ThingSpeak
     if (widget.userApiKeys.isEmpty) {
       _apiController = TextEditingController(text: "2813413");
     } else {
@@ -41,6 +44,7 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
   }
 
   Future<void> _saveApiKeys() async {
+    // Procesamos el texto para limpiar espacios y líneas vacías
     final keys = _apiController.text
         .split(RegExp(r'[,\n]')) 
         .map((e) => e.trim())
@@ -59,9 +63,11 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
 
     if (!mounted) return;
 
+    // Si venimos de la pantalla de Ajustes, hacemos pop devolviendo 'true' (necesita recarga)
     if (Navigator.canPop(context)) {
       Navigator.pop(context, true);
     } else {
+      // Si es el primer inicio de la App, navegamos a la pantalla principal
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -135,7 +141,6 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isFirstTime) ...[
-                // BANNER DE AYUDA CON EL EJEMPLO REAL
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -163,7 +168,7 @@ class _ApiKeysConfigScreenState extends State<ApiKeysConfigScreen> {
                 controller: _apiController,
                 decoration: InputDecoration(
                   labelText: t.get('api_keys'),
-                  helperText: t.get('edit_helper'), // Texto debajo: "Añade, borra..."
+                  helperText: t.get('edit_helper'), 
                   hintText: "2813413\nUser_API_Key\nChannel_ID:Read_API_Key",
                   border: const OutlineInputBorder(),
                   alignLabelWithHint: true,

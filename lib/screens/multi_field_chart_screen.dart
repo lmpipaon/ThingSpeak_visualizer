@@ -12,7 +12,6 @@ import '../models/favorite_config.dart';
 import '../services/thingspeak_service.dart';
 import '../localization/translations.dart';
 
-// NUEVOS IMPORTS DE LA ESTRUCTURA DIVIDIDA
 import 'multi_chart/chart_widgets.dart';
 import 'multi_chart/settings_dialog.dart';
 
@@ -54,17 +53,26 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   final Map<String, TextEditingController> minControllers = {};
   final Map<String, TextEditingController> maxControllers = {};
   Map<String, bool> serieVisible = {};
+  
+  // La variable de traducciones
   late Translations t;
+
+  void _toggleFullScreen() {
+  setState(() {
+    _isFullScreen = !_isFullScreen;
+  });
+}
 
   @override
   void initState() {
     super.initState();
+    // INICIALIZACIÓN: Usamos el idioma que viene del selector
     t = Translations(widget.language);
+    
     startDate = widget.start;
     endDate = widget.end;
     
     for (var s in widget.sources) {
-      // Usamos el valor inicial si existe, si no, null (auto-escala)
       minValues[s.id] = widget.initialMin?[s.id];
       maxValues[s.id] = widget.initialMax?[s.id];
       minControllers[s.id] = TextEditingController(text: minValues[s.id]?.toString() ?? '');
@@ -76,6 +84,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
 
   @override
   void dispose() {
+    // Restauramos orientación al salir
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -87,24 +96,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     super.dispose();
   }
 
-  void _toggleFullScreen() {
-    setState(() {
-      _isFullScreen = !_isFullScreen;
-      if (_isFullScreen) {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      } else {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      }
-    });
-  }
+  // ... (Métodos _toggleFullScreen y fetchData se mantienen igual)
 
   Future<void> fetchData() async {
     if (!mounted) return;
@@ -145,7 +137,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     showDialog(
       context: context,
       builder: (context) => SettingsDialog(
-        t: t,
+        t: t, // Pasamos la instancia t ya inicializada
         startDate: startDate,
         endDate: endDate,
         sources: widget.sources,
@@ -168,6 +160,9 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // RE-ASIGNACIÓN: Por seguridad, actualizamos t con el idioma del widget
+    t = Translations(widget.language);
+
     return Scaffold(
       appBar: _isFullScreen 
         ? null 
@@ -190,7 +185,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        t.get('thingSpeakMulti'),
+                        t.get('thingSpeakMulti'), // Clave en el JSON
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -234,14 +229,15 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
           if (!_isFullScreen) _buildVisibilityToggles(),
           
           Expanded(
-            child: (_isLoadingData || xRange == null) // PROTECCIÓN: Si no hay rango, mostramos carga
+            child: (_isLoadingData || xRange == null)
                 ? const Center(child: CircularProgressIndicator())
                 : Padding(
                     padding: const EdgeInsets.only(top: 1),
                     child: ChartView(
+                      language: widget.language,
                       sources: widget.sources,
                       multiData: multiData,
-                      xRange: xRange!, // Aquí ya estamos seguros de que no es null
+                      xRange: xRange!,
                       serieVisible: serieVisible,
                       minValues: minValues,
                       maxValues: maxValues,
@@ -257,7 +253,8 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     );
   }
 
-  // ... resto de métodos auxiliares (se mantienen igual que los tuyos)
+  // ... (Los widgets auxiliares _buildCompactAction, _buildVisibilityToggles, _buildZoomSlider se mantienen igual)
+
   Widget _buildCompactAction({required IconData icon, required VoidCallback onTap}) {
     return SizedBox(
       width: 36,

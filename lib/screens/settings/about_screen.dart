@@ -43,23 +43,21 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Inicializamos las traducciones con el idioma actual
     final t = Translations(language);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.get('about_title')),
+        title: Text(t.get('about_title')), // Clave: about_title
         centerTitle: true,
       ),
-      // Usamos FutureBuilder para obtener los datos REALES del pubspec.yaml
       body: FutureBuilder<PackageInfo>(
         future: PackageInfo.fromPlatform(),
         builder: (context, snapshot) {
-          // 1. Mientras espera la info del sistema
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. Extraemos los datos (si falla, ponemos un fallback seguro)
           final String version = snapshot.data?.version ?? '1.2.0';
           final String buildNumber = snapshot.data?.buildNumber ?? '1';
           
@@ -79,52 +77,51 @@ class AboutScreen extends StatelessWidget {
                         ),
                   ),
                   
-                  // Mostramos Versión + Build (ej: 1.2.0+1)
                   Text(
-                    '${t.get('version_label')} $version+$buildNumber',
+                    '${t.get('version_label')} $version+$buildNumber', // Clave: version_label
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                   
                   const SizedBox(height: 20),
 
                   Text(
-                    t.get('app_description'),
+                    t.get('app_description'), // Clave: app_description
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 15, height: 1.4, color: Colors.black87),
                   ),
                   
                   const Divider(height: 40, thickness: 1),
 
-                  _buildHeader(context, t.get('author')),
+                  _buildHeader(context, t.get('author')), // Clave: author
                   const SizedBox(height: 4),
                   Text(authorName, style: Theme.of(context).textTheme.titleMedium),
                   
                   const SizedBox(height: 25),
 
-                  _buildHeader(context, t.get('contact_label')),
+                  _buildHeader(context, t.get('contact_label')), // Clave: contact_label
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: _sendEmail,
                     icon: const Icon(Icons.email_outlined),
-                    label: Text(t.get('send_email')),
+                    label: Text(t.get('send_email')), // Clave: send_email
                   ),
                   Text(contactEmail, style: const TextStyle(fontSize: 11, color: Colors.grey)),
 
                   const SizedBox(height: 25),
 
-                  _buildHeader(context, t.get('github_link')),
+                  _buildHeader(context, t.get('github_link')), // Clave: github_link
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: () => _launchUrl(githubUrl),
                     icon: const Icon(Icons.code),
-                    label: Text(t.get('view_github')),
+                    label: Text(t.get('view_github')), // Clave: view_github
                   ),
 
                   const SizedBox(height: 40),
 
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                       elevation: 0,
                     ),
@@ -141,7 +138,7 @@ class AboutScreen extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.description_outlined),
-                    label: Text(t.get('licenses_label')),
+                    label: Text(t.get('licenses_label')), // Clave: licenses_label
                   ),
                   
                   const SizedBox(height: 25),

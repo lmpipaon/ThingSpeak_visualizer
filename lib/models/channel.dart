@@ -1,7 +1,7 @@
 class Channel {
   final String id;
   final String readApiKey;
-  final String name;
+  String name;
 
   Channel({
     required this.id,

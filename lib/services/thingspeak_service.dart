@@ -77,7 +77,7 @@ class ThingSpeakService {
   // ------------------------------------------------------
   // Mapear fieldName -> fieldX (SOPORTA PÚBLICOS)
   // ------------------------------------------------------
-  Future<Map<String, String>> getLastFeed(
+Future<dynamic> getLastFeed( // <--- Cambiado de Map<String, String> a dynamic
     Channel channel,
     Map<String, String> fieldNameToFieldX,
   ) async {
@@ -87,11 +87,8 @@ class ThingSpeakService {
       urlStr += '&api_key=${channel.readApiKey}';
     }
 
-    // debugPrint('🌐 GET LastFeed (Nombres): $urlStr'); // DEBUG
-
     final response = await http.get(Uri.parse(urlStr));
     if (response.statusCode != 200) {
-      // debugPrint('❌ Error en getLastFeed: ${response.statusCode}');
       throw Exception('Error al obtener la última lectura del canal');
     }
 
@@ -100,12 +97,10 @@ class ThingSpeakService {
     final channelInfo = data['channel'];
 
     if (feeds == null || feeds.isEmpty) {
-      // debugPrint('⚠️ No hay feeds en el canal ${channel.id}');
-      return {};
+      return null; // <--- Cambiado para manejar errores de canal vacío
     }
 
     final lastFeed = feeds[0] as Map<String, dynamic>;
-    final Map<String, String> fields = {};
 
     lastFeed.forEach((key, value) {
       if (key.startsWith('field')) {
@@ -113,12 +108,12 @@ class ThingSpeakService {
             ? channelInfo[key].toString() 
             : key; 
             
-        fields[fieldName] = value?.toString() ?? "";
+        // Seguimos llenando este mapa por referencia para que la pantalla lo use
         fieldNameToFieldX[fieldName] = key;
       }
     });
 
-    return fields;
+    return data; // <--- AHORA DEVOLVEMOS TODO EL JSON PARA SACAR EL NOMBRE
   }
 
   // ------------------------------------------------------
