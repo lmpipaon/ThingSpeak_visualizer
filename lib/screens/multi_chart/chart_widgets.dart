@@ -19,7 +19,7 @@ class ChartView extends StatelessWidget {
   final GlobalKey boundaryKey;
   final bool isFullScreen;
   final bool showYAxes;
-  final String language; // Recibimos el idioma para localizar fechas
+  final String language;
 
   const ChartView({
     super.key,
@@ -41,7 +41,7 @@ class ChartView extends StatelessWidget {
     const double axisWidth = 46.0;
     
     int visibleCount = sources.where((s) => serieVisible[s.id] == true).length;
-    final double leftPadding = showYAxes ? (visibleCount * axisWidth) : 10.0;
+    final double leftPadding = showYAxes ? (visibleCount * axisWidth) + 8.0 : 10.0;
 
     return RepaintBoundary(
       key: boundaryKey,
@@ -54,7 +54,7 @@ class ChartView extends StatelessWidget {
               padding: EdgeInsets.only(
                 left: leftPadding, 
                 right: 20, 
-                top: 25, // Margen superior para tooltips
+                top: 25, 
                 bottom: 5
               ),
               child: _buildLineChart(t),
@@ -66,10 +66,11 @@ class ChartView extends StatelessWidget {
     );
   }
 
-  Widget _buildLineChart(Translations t) {
+Widget _buildLineChart(Translations t) {
     final List<LineChartBarData> lines = [];
-    final List<ChartSource> activeSources = sources.where((s) => serieVisible[s.id] == true).toList();
+    final Map<int, ChartSource> barIndexToSource = {};
 
+    int currentBarIndex = 0;
     for (var s in sources) {
       if (serieVisible[s.id] != true) continue;
       final data = multiData[s.id] ?? [];
@@ -87,14 +88,17 @@ class ChartView extends StatelessWidget {
           .toList();
 
       if (spots.isEmpty) continue;
+      barIndexToSource[currentBarIndex] = s;
 
       lines.add(LineChartBarData(
         spots: spots,
         isCurved: false,
         color: s.color,
-        barWidth: 1.8,
+        barWidth: 2.0,
         dotData: const FlDotData(show: false),
+        belowBarData: BarAreaData(show: false),
       ));
+      currentBarIndex++;
     }
 
     final rangeMs = xRange.end - xRange.start;
@@ -104,16 +108,17 @@ class ChartView extends StatelessWidget {
       LineChartData(
         lineTouchData: LineTouchData(
           enabled: true,
+          handleBuiltInTouches: true,
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (LineBarSpot touchedSpot) => Colors.white.withOpacity(0.9),
+            // FONDO MÁS TRANSPARENTE (0.6)
+            getTooltipColor: (LineBarSpot touchedSpot) => Colors.white.withOpacity(0.3),
             fitInsideHorizontally: true,
             fitInsideVertically: true,
             getTooltipItems: (List<LineBarSpot> touchedSpots) {
-              final sortedSpots = List<LineBarSpot>.from(touchedSpots)
-                ..sort((a, b) => a.barIndex.compareTo(b.barIndex));
+              return touchedSpots.map((barSpot) {
+                final s = barIndexToSource[barSpot.barIndex];
+                if (s == null) return null;
 
-              return sortedSpots.map((barSpot) {
-                final s = activeSources[barSpot.barIndex];
                 final data = multiData[s.id] ?? [];
                 final minY = minValues[s.id] ?? data.map((e) => e.value).reduce(min);
                 final maxY = maxValues[s.id] ?? data.map((e) => e.value).reduce(max);
@@ -124,25 +129,33 @@ class ChartView extends StatelessWidget {
                     : realValue.toStringAsFixed(2);
 
                 final DateTime dt = DateTime.fromMillisecondsSinceEpoch(barSpot.x.toInt());
-                
-                // --- LOCALIZACIÓN DE FECHA EN TOOLTIP ---
-                // Muestra: "14 ene, 23:15" en ES o "Jan 14, 11:15 PM" en EN
                 final String timeStr = DateFormat.MMMd(language).add_Hm().format(dt);
 
                 return LineTooltipItem(
-                  '${s.displayName}\n$timeStr\n$valueStr',
+                  // QUITAMOS EL NOMBRE DEL CANAL: Empezamos directamente con el valor
+                  '$valueStr\n',
                   TextStyle(
-                    color: s.color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
+                    color: s.color, // El valor conserva el color de la línea
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 14
                   ),
+                  children: [
+TextSpan(
+  text: timeStr,
+  style: const TextStyle(
+    color: Colors.black87, // <--- CAMBIA ESTO A BLACK
+    fontSize: 10, 
+    fontWeight: FontWeight.normal
+  ),
+),
+                  ],
                 );
-              }).toList();
+              }).whereType<LineTooltipItem>().toList();
             },
           ),
         ),
-        minY: -0.02,
-        maxY: 1.02,
+        minY: -0.05,
+        maxY: 1.05,
         lineBarsData: lines,
         gridData: FlGridData(
           show: true,
@@ -164,8 +177,6 @@ class ChartView extends StatelessWidget {
               interval: intervalMs > 0 ? intervalMs : 1,
               getTitlesWidget: (value, meta) {
                 final dt = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-                
-                // --- LOCALIZACIÓN DE FECHA EN EJE X ---
                 final String datePart = DateFormat.MMMd(language).format(dt);
                 final String timePart = DateFormat.Hm(language).format(dt);
 
@@ -175,11 +186,7 @@ class ChartView extends StatelessWidget {
                   child: Text(
                     '$datePart\n$timePart',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 9, 
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black54
-                    ),
+                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black54),
                   ),
                 );
               },
@@ -198,7 +205,7 @@ class ChartView extends StatelessWidget {
       
       final minY = minValues[s.id] ?? data.map((e) => e.value).reduce(min);
       final maxY = maxValues[s.id] ?? data.map((e) => e.value).reduce(max);
-      final left = (index++).toDouble() * width;
+      final left = ((index++).toDouble() * width) + 8;
 
       return Positioned(
         left: left, 

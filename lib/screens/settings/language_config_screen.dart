@@ -32,48 +32,50 @@ class _LanguageConfigScreenState extends State<LanguageConfigScreen> {
     Navigator.pop(context, _tempLang != widget.language);
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
-    // Actualizamos las traducciones dinámicamente según la selección temporal
     t = Translations(_tempLang);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(t.get('language_config')),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              children: [
-                _buildOption(t.get('lang_es'), 'es'), // Español
-                _buildOption(t.get('lang_en'), 'en'), // Inglés
-                _buildOption(t.get('lang_eu'), 'eu'), // Euskara
-                _buildOption(t.get('lang_ca'), 'ca'), // Català
-                _buildOption(t.get('lang_ga'), 'ga'), // Galego
-                _buildOption(t.get('lang_it'), 'it'), // Italiano
-                _buildOption(t.get('lang_pt'), 'pt'), // Português
-                _buildOption(t.get('lang_fr'), 'fr'), // Français
-                _buildOption(t.get('lang_de'), 'de'), // Deutsch
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: ElevatedButton(
-              onPressed: _saveLanguage,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 55),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text(
-                t.get('save'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      // Añadimos SafeArea para que respete el notch y la barra de estado
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                children: [
+                  _buildOption(t.get('lang_es'), 'es'),
+                  _buildOption(t.get('lang_en'), 'en'),
+                  _buildOption(t.get('lang_eu'), 'eu'),
+                  _buildOption(t.get('lang_ca'), 'ca'),
+                  _buildOption(t.get('lang_ga'), 'ga'),
+                  _buildOption(t.get('lang_it'), 'it'),
+                  _buildOption(t.get('lang_pt'), 'pt'),
+                  _buildOption(t.get('lang_fr'), 'fr'),
+                  _buildOption(t.get('lang_de'), 'de'),
+                ],
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20), // Margen inferior ajustado
+              child: ElevatedButton(
+                onPressed: _saveLanguage,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 55),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  t.get('save'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

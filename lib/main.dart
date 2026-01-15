@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Necesario para leer el idioma guardado
 import 'screens/initial_loader.dart';
 import '../localization/translations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   // 1. Asegurar la inicialización de Flutter
@@ -14,6 +15,17 @@ void main() async {
   // 3. Cargar el JSON de traducciones ANTES de runApp
   final translations = Translations(savedLang);
   await translations.load();
+
+
+  await initializeDateFormatting('es', null);
+  await initializeDateFormatting('en', null);
+  await initializeDateFormatting('eu', null);
+  await initializeDateFormatting('ca', null);
+  await initializeDateFormatting('ga', null);
+  await initializeDateFormatting('it', null);
+  await initializeDateFormatting('pt', null);
+  await initializeDateFormatting('fr', null);
+  await initializeDateFormatting('de', null);
 
   // 4. Iniciar la App
   runApp(const MyApp());

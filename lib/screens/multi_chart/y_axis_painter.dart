@@ -34,9 +34,9 @@ class YAxisPainter extends CustomPainter {
         ),
         textAlign: TextAlign.right,
         textDirection: ui.TextDirection.ltr,
-      )..layout(maxWidth: width - 8);
+      )..layout(maxWidth: width - 12);
       
-      tp.paint(canvas, Offset(0, y - tp.height / 2));
+      tp.paint(canvas, Offset(4, y - tp.height / 2));
     }
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, size.height), paintLine);
   }
