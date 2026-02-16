@@ -1,8 +1,9 @@
+import '../main.dart'; 
 import 'dart:convert';
-import 'dart:async'; // Para TimeoutException
-import 'dart:io';    // Para SocketException
-import 'package:flutter/foundation.dart';
+import 'dart:async'; 
+import 'dart:io';    
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart'; // Necesario para la UI del SnackBar
 
 import '../models/channel.dart';
 import '../models/chart_data.dart';
@@ -14,13 +15,43 @@ class ThingSpeakService {
 
   // --- FUNCIÓN PRIVADA PARA MANEJO DE ERRORES DE RED ---
   void _handleError(Object e) {
+    String message = '';
+
+    // 1. Identificamos el tipo de error y asignamos el texto
     if (e is SocketException) {
-      throw Exception('Sin conexión a Internet. Revisa tu WiFi o datos.');
+      message = 'Sin conexión a Internet. Revisa tu WiFi o datos.';
     } else if (e is TimeoutException) {
-      throw Exception('Tiempo de espera agotado. ThingSpeak no responde.');
+      message = 'Tiempo de espera agotado. ThingSpeak no responde.';
     } else {
-      throw Exception('Error de red: $e');
+      message = 'Error de red: $e';
     }
+
+    // 2. DISPARAMOS EL POP-UP (SnackBar)
+    globalMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.wifi_off, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message, 
+                style: const TextStyle(color: Colors.white, fontSize: 14)
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.redAccent,
+        duration: const Duration(seconds: 5), // Desaparece tras 3 segundos
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+
+    // 3. LANZAMOS LA EXCEPCIÓN
+    // Esto es lo que ves en la consola y lo que atrapa el "catch" de tu UI
+    throw Exception(message);
   }
 
   // 1. Obtiene un canal individual

@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Necesario para leer el idioma guardado
+import 'package:shared_preferences/shared_preferences.dart'; 
 import 'screens/initial_loader.dart';
-import '../localization/translations.dart';
+import 'localization/translations.dart'; // Corregido el path si es necesario
 import 'package:intl/date_symbol_data_local.dart';
 
+// --- ESTA ES LA LLAVE MAESTRA PARA MENSAJES GLOBALES ---
+final GlobalKey<ScaffoldMessengerState> globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 void main() async {
-  // 1. Asegurar la inicialización de Flutter
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 2. Leer el idioma guardado del almacenamiento local (o español por defecto)
   final prefs = await SharedPreferences.getInstance();
   final String savedLang = prefs.getString('selected_language') ?? 'en';
 
-  // 3. Cargar el JSON de traducciones ANTES de runApp
   final translations = Translations(savedLang);
   await translations.load();
-
 
   await initializeDateFormatting('es', null);
   await initializeDateFormatting('en', null);
@@ -27,7 +26,6 @@ void main() async {
   await initializeDateFormatting('fr', null);
   await initializeDateFormatting('de', null);
 
-  // 4. Iniciar la App
   runApp(const MyApp());
 }
 
@@ -36,9 +34,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      // ASOCIAMOS LA LLAVE AQUÍ
+      scaffoldMessengerKey: globalMessengerKey, 
       debugShowCheckedModeBanner: false,
-      home: InitialLoader(), // Tu loader ahora ya tendrá las traducciones listas
+      home: const InitialLoader(),
     );
   }
 }
