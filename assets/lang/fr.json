@@ -77,5 +77,14 @@
   "help_private_id_desc": "Pour les canaux privés spécifiques (ex : 123456:ABC123XYZ).",
   "close": "Compris",
   "banner_help_text": "J'ai ajouté l'ID 2813413 comme exemple. Vous pouvez le supprimer ou ajouter vos propres données quand vous voulez.",
-  "edit_helper": "Ajoutez, supprimez ou modifiez les lignes selon vos besoins"
+  "edit_helper": "Ajoutez, supprimez ou modifiez les lignes selon vos besoins",
+  "lang_es": "Espagnol",
+  "lang_en": "Anglais",
+  "lang_eu": "Basque",
+  "lang_ca": "Catalan",
+  "lang_ga": "Galicien",
+  "lang_it": "Italien",
+  "lang_pt": "Portugais",
+  "lang_fr": "Français",
+  "lang_de": "Allemand"
 }

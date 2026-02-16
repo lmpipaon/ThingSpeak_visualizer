@@ -77,5 +77,14 @@
   "help_private_id_desc": "Für spezifische private Kanäle (z.B. 123456:ABC123XYZ).",
   "close": "Verstanden",
   "banner_help_text": "Ich habe die ID 2813413 als Beispiel hinzugefügt. Sie können sie jederzeit löschen.",
-  "edit_helper": "Zeilen nach Bedarf hinzufügen, löschen oder ändern"
+  "edit_helper": "Zeilen nach Bedarf hinzufügen, löschen oder ändern",
+  "lang_es": "Spanisch",
+  "lang_en": "Englisch",
+  "lang_eu": "Baskisch",
+  "lang_ca": "Katalanisch",
+  "lang_ga": "Galicisch",
+  "lang_it": "Italienisch",
+  "lang_pt": "Portugiesisch",
+  "lang_fr": "Französisch",
+  "lang_de": "Deutsch"
 }

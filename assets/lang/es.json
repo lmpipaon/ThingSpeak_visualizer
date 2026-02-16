@@ -77,5 +77,14 @@
   "help_private_id_desc": "Para canales privados específicos (ej: 123456:ABC123XYZ).",
   "close": "Entendido",
   "banner_help_text": "He añadido el ID 2813413 como ejemplo para que pruebes la App. Puedes borrarlo o añadir tus propios datos (uno por línea) cuando quieras.",
-  "edit_helper": "Añade, borra o modifica las líneas según necesites"
+  "edit_helper": "Añade, borra o modifica las líneas según necesites",
+  "lang_es": "Español",
+  "lang_en": "Inglés",
+  "lang_eu": "Euskera",
+  "lang_ca": "Catalán",
+  "lang_ga": "Gallego",
+  "lang_it": "Italiano",
+  "lang_pt": "Portugués",
+  "lang_fr": "Francés",
+  "lang_de": "Alemán"
 }

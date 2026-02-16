@@ -77,5 +77,14 @@
   "help_private_id_desc": "Kanal pribatu zehatzetarako (adib: 123456:ABC123XYZ).",
   "close": "Ulertuta",
   "banner_help_text": "2813413 IDa adibide gisa gehitu dut App-a probatu ahal izateko. Nahi duzunean ezabatu edo zure datuak gehitu ditzakezu (lerro bakoitzeko bat).",
-  "edit_helper": "Gehitu, ezabatu edo aldatu lerroak behar duzun moduan"
+  "edit_helper": "Gehitu, ezabatu edo aldatu lerroak behar duzun moduan",
+  "lang_es": "Gaztelania",
+  "lang_en": "Ingelesa",
+  "lang_eu": "Euskara",
+  "lang_ca": "Katalana",
+  "lang_ga": "Galiziera",
+  "lang_it": "Italiera",
+  "lang_pt": "Portugesa",
+  "lang_fr": "Frantsesa",
+  "lang_de": "Alemana"
 }

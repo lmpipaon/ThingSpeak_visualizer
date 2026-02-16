@@ -77,5 +77,14 @@
   "help_private_id_desc": "Per a canals privats específics (ex: 123456:ABC123XYZ).",
   "close": "Entès",
   "banner_help_text": "He afegit l'ID 2813413 com a exemple perquè provis l'App. Pots esborrar-lo o afegir les teves pròpies dades quan vulguis.",
-  "edit_helper": "Afegeix, esborra o modifica les línies segons necessitis"
+  "edit_helper": "Afegeix, esborra o modifica les línies segons necessitis",
+  "lang_es": "Castellà",
+  "lang_en": "Anglès",
+  "lang_eu": "Basc",
+  "lang_ca": "Català",
+  "lang_ga": "Gallec",
+  "lang_it": "Italià",
+  "lang_pt": "Portuguès",
+  "lang_fr": "Francès",
+  "lang_de": "Alemany"
 }
