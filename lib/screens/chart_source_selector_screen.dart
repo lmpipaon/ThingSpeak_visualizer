@@ -41,7 +41,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializamos la instancia de traducción con el idioma actual
     t = Translations(widget.language);
     loadAllChannelsAndFields();
     _loadFavorites(); 
@@ -59,33 +58,35 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
   }
 
   Future<void> _deleteFavorite(int index) async {
-    final prefs = await SharedPreferences.getInstance();
     final deletedFav = favorites[index];
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
 
-    setState(() {
-      favorites.removeAt(index);
-      _syncFavoritesToPrefs(prefs);
-    });
+    bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(t.get('confirm_delete') ?? "Confirmar"),
+          content: Text("${t.get('delete_question') ?? '¿Borrar favorito?'} \n\n${deletedFav.name}"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(t.get('cancel') ?? "Cancelar"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(t.get('delete') ?? "Borrar", style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
 
-    if (mounted) {
-      final snack = SnackBar(
-        content: Text("${t.get('deleted')}: ${deletedFav.name}"),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: t.get('undo'),
-          onPressed: () {
-            setState(() {
-              favorites.insert(index, deletedFav);
-              _syncFavoritesToPrefs(prefs);
-            });
-            messenger.hideCurrentSnackBar();
-          },
-        ),
-      );
-      messenger.showSnackBar(snack);
+    if (confirmar == true) {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        favorites.removeAt(index);
+        _syncFavoritesToPrefs(prefs);
+      });
     }
   }
 
@@ -111,15 +112,13 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     _loadFavorites(); 
   }
 
-  // RECARGA DE CONFIGURACIÓN (Llamada al volver de Settings)
   Future<void> _reloadConfigAndChannels() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
 
-    // Sincronizamos con 'selected_language' y cargamos el nuevo JSON
     String newLang = prefs.getString('selected_language') ?? 'en';
     final newTranslations = Translations(newLang);
-    await newTranslations.load(); // Esencial para que el cambio de idioma se aplique
+    await newTranslations.load();
 
     Navigator.pushReplacement(
       context,
@@ -132,11 +131,12 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
     );
   }
 
-  // --- LÓGICA DE CARGA DE CANALES ---
+  // --- LÓGICA DE CARGA MEJORADA ---
   Future<void> loadAllChannelsAndFields() async {
+    if (!mounted) return;
     setState(() {
       loading = true;
-      errorMessage = null; 
+      errorMessage = null;
       channels = [];
       channelFields = {};
     });
@@ -160,7 +160,11 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
             allChannels.addAll(userChannels);
           }
         } catch (e) {
-          debugPrint('Error procesando entrada $entry: $e');
+          // Si es error de red, lanzamos al catch principal
+          if (e.toString().contains('SocketException') || e.toString().contains('Failed host') || e.toString().contains('conexión')) {
+            rethrow;
+          }
+          debugPrint('Error en entrada individual: $e');
         }
       }
 
@@ -184,10 +188,14 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
               validatedChannels.add(channel);
             }
           } catch (e) {
-            debugPrint('Canal ${channel.id} no disponible: $e');
+             if (e.toString().contains('SocketException') || e.toString().contains('conexión')) {
+               rethrow;
+             }
+             debugPrint('Canal ${channel.id} no disponible: $e');
           }
         }());
       }
+      
       await Future.wait(fieldFutures);
       
       if (!mounted) return;
@@ -198,11 +206,53 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
       
     } catch (e) {
       if (!mounted) return;
+      
+      String cleanError = e.toString().replaceAll('Exception: ', '');
+      if (cleanError.contains('SocketException') || cleanError.contains('Failed host')) {
+        cleanError = "Error de conexión: Verifica tu Internet";
+      }
+      
       setState(() {
-        errorMessage = '${t.get('error_loading_channels')}\n$e';
         loading = false;
+        errorMessage = cleanError;
+      });
+
+      // Diálogo de emergencia
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showErrorDialog(cleanError);
       });
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.signal_wifi_connected_no_internet_4, color: Colors.red),
+            const SizedBox(width: 10),
+            const Text("Error de Conexión"),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.get('cancel') ?? "Cerrar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              loadAllChannelsAndFields(); 
+            },
+            child: const Text("Reintentar"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _addSource() async {
@@ -303,7 +353,6 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
   
   @override
   Widget build(BuildContext context) {
-    // Aseguramos que 't' use el idioma actual del widget
     t = Translations(widget.language);
 
     return Scaffold(
@@ -330,9 +379,7 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => AboutScreen(language: widget.language),
-                      ),
+                      MaterialPageRoute(builder: (_) => AboutScreen(language: widget.language)),
                     );
                   },
                 ),
@@ -365,73 +412,97 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
       body: SafeArea(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  if (favorites.isNotEmpty)
-                    ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                      visualDensity: VisualDensity.compact,
-                      initiallyExpanded: true, 
-                      leading: const Icon(Icons.star, color: Colors.amber, size: 20),
-                      title: Text("${t.get('favorites')} (${favorites.length})", 
-                        style: const TextStyle(fontSize: 13)),
-                      children: favorites.asMap().entries.map((entry) {
-                        int idx = entry.key;
-                        FavoriteConfig fav = entry.value;
-                        return ListTile(
-                          dense: true, 
-                          key: ValueKey(fav.name + idx.toString()),
-                          title: Text(fav.name, style: const TextStyle(fontSize: 13)),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                            onPressed: () => _deleteFavorite(idx),
+            : errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.signal_wifi_connected_no_internet_4, size: 60, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                           ),
-                          onTap: () => _loadFavoriteIntoChart(fav),
-                        );
-                      }).toList(),
-                    ),
-                  
-                  const Divider(height: 1),
-
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.all(12),
-                      children: [
-                        Text(t.get('sources_to_compare'), 
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ...selectedSources.map((source) => ListTile(
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          leading: Icon(Icons.circle, color: source.color, size: 12),
-                          title: Text(source.displayName, style: const TextStyle(fontSize: 13)),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close, size: 18), 
-                            onPressed: () => _removeSource(source.id)
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: loadAllChannelsAndFields,
+                            icon: const Icon(Icons.refresh),
+                            label: Text(t.get('retry') ?? "Reintentar"),
                           ),
-                        )).toList(),
-                        
-                        TextButton.icon(
-                          onPressed: _addSource,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Text(t.get('add_new_source'), style: const TextStyle(fontSize: 13)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: ElevatedButton(
-                      onPressed: selectedSources.isNotEmpty ? _goToChart : null,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 40),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ],
                       ),
-                      child: Text(t.get('generate_chart_button')),
                     ),
+                  )
+                : Column(
+                    children: [
+                      if (favorites.isNotEmpty)
+                        ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                          visualDensity: VisualDensity.compact,
+                          initiallyExpanded: true,
+                          leading: const Icon(Icons.star, color: Colors.amber, size: 20),
+                          title: Text("${t.get('favorites')} (${favorites.length})", 
+                            style: const TextStyle(fontSize: 13)),
+                          children: favorites.asMap().entries.map((entry) {
+                            int idx = entry.key;
+                            FavoriteConfig fav = entry.value;
+                            return ListTile(
+                              dense: true, 
+                              key: ValueKey(fav.name + idx.toString()),
+                              title: Text(fav.name, style: const TextStyle(fontSize: 13)),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                                onPressed: () => _deleteFavorite(idx),
+                              ),
+                              onTap: () => _loadFavoriteIntoChart(fav),
+                            );
+                          }).toList(),
+                        ),
+                      
+                      const Divider(height: 1),
+
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.all(12),
+                          children: [
+                            Text(t.get('sources_to_compare'), 
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ...selectedSources.map((source) => ListTile(
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              leading: Icon(Icons.circle, color: source.color, size: 12),
+                              title: Text(source.displayName, style: const TextStyle(fontSize: 13)),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close, size: 18), 
+                                onPressed: () => _removeSource(source.id)
+                              ),
+                            )).toList(),
+                            
+                            TextButton.icon(
+                              onPressed: _addSource,
+                              icon: const Icon(Icons.add, size: 18),
+                              label: Text(t.get('add_new_source'), style: const TextStyle(fontSize: 13)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: ElevatedButton(
+                          onPressed: selectedSources.isNotEmpty ? _goToChart : null,
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 40),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(t.get('generate_chart_button')),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
       ),
     );
   }
