@@ -285,11 +285,12 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
 
   // --- INTERFAZ ---
   @override
+ @override
   Widget build(BuildContext context) {
     t = Translations(widget.language);
 
     return Scaffold(
-      appBar: PreferredSize(
+appBar: PreferredSize(
         preferredSize: const Size.fromHeight(32.0),
         child: Container(
           padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
@@ -297,13 +298,47 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
           child: Row(
             children: [
               const SizedBox(width: 12),
-              Expanded(child: Text(t.get('select_channel'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white))),
+              // Título de la App
+              Expanded(
+                child: Text(
+                  t.get('select_channel'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              // ICONO DE INFORMACIÓN (i) - Corregido con lenguaje
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.info_outline, size: 18, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AboutScreen(language: widget.language), // <--- Argumento añadido
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 12), 
+              // ICONO DE AJUSTES
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 icon: const Icon(Icons.settings, size: 18, color: Colors.white),
                 onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(language: widget.language, userApiKeys: widget.userApiKeys)));
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SettingsScreen(
+                        language: widget.language,
+                        userApiKeys: widget.userApiKeys,
+                      ),
+                    ),
+                  );
                   _reloadConfigAndChannels();
                 },
               ),
@@ -316,8 +351,8 @@ class _ChartSourceSelectorScreenState extends State<ChartSourceSelectorScreen> {
         child: loading
             ? const Center(child: CircularProgressIndicator())
             : errorMessage != null
-                ? _buildErrorView() // Mostrar error si existe
-                : _buildMainContent(), // Mostrar lista normal
+                ? _buildErrorView() // Mostrar error si existe (sin conexión)
+                : _buildMainContent(), // Mostrar lista normal (favoritos y canales)
       ),
     );
   }
