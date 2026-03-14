@@ -12,7 +12,6 @@ import '../models/favorite_config.dart';
 import '../services/thingspeak_service.dart';
 import '../localization/translations.dart';
 
-// NUEVOS IMPORTS DE LA ESTRUCTURA DIVIDIDA
 import 'multi_chart/chart_widgets.dart';
 import 'multi_chart/settings_dialog.dart';
 
@@ -54,12 +53,22 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
   final Map<String, TextEditingController> minControllers = {};
   final Map<String, TextEditingController> maxControllers = {};
   Map<String, bool> serieVisible = {};
+  
+  // La variable de traducciones
   late Translations t;
+
+  void _toggleFullScreen() {
+  setState(() {
+    _isFullScreen = !_isFullScreen;
+  });
+}
 
   @override
   void initState() {
     super.initState();
+    // INICIALIZACIÓN: Usamos el idioma que viene del selector
     t = Translations(widget.language);
+    
     startDate = widget.start;
     endDate = widget.end;
     
@@ -75,6 +84,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
 
   @override
   void dispose() {
+    // Restauramos orientación al salir
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -86,24 +96,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     super.dispose();
   }
 
-  void _toggleFullScreen() {
-    setState(() {
-      _isFullScreen = !_isFullScreen;
-      if (_isFullScreen) {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      } else {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      }
-    });
-  }
+  // ... (Métodos _toggleFullScreen y fetchData se mantienen igual)
 
   Future<void> fetchData() async {
     if (!mounted) return;
@@ -123,6 +116,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
         );
         multiData[s.id] = data;
       }
+      
       final allTimes = multiData.values
           .expand((list) => list.map((e) => e.time.millisecondsSinceEpoch))
           .toList();
@@ -143,7 +137,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     showDialog(
       context: context,
       builder: (context) => SettingsDialog(
-        t: t,
+        t: t, // Pasamos la instancia t ya inicializada
         startDate: startDate,
         endDate: endDate,
         sources: widget.sources,
@@ -166,6 +160,9 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // RE-ASIGNACIÓN: Por seguridad, actualizamos t con el idioma del widget
+    t = Translations(widget.language);
+
     return Scaffold(
       appBar: _isFullScreen 
         ? null 
@@ -188,7 +185,7 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        t.get('thingSpeakMulti'),
+                        t.get('thingSpeakMulti'), // Clave en el JSON
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -229,15 +226,15 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
 
       body: SafeArea(
         child: Column(children: [
-          // Chips de nombres compactos y horizontales
           if (!_isFullScreen) _buildVisibilityToggles(),
           
           Expanded(
-            child: _isLoadingData
+            child: (_isLoadingData || xRange == null)
                 ? const Center(child: CircularProgressIndicator())
                 : Padding(
-                    padding: EdgeInsets.only(top: _isFullScreen ? 1 : 1),
+                    padding: const EdgeInsets.only(top: 1),
                     child: ChartView(
+                      language: widget.language,
                       sources: widget.sources,
                       multiData: multiData,
                       xRange: xRange!,
@@ -256,6 +253,8 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     );
   }
 
+  // ... (Los widgets auxiliares _buildCompactAction, _buildVisibilityToggles, _buildZoomSlider se mantienen igual)
+
   Widget _buildCompactAction({required IconData icon, required VoidCallback onTap}) {
     return SizedBox(
       width: 36,
@@ -268,9 +267,9 @@ class _MultiFieldChartScreenState extends State<MultiFieldChartScreen> {
     );
   }
 
-Widget _buildVisibilityToggles() {
+  Widget _buildVisibilityToggles() {
     return Container(
-      height: 24, // Reducción extrema de altura
+      height: 24,
       margin: const EdgeInsets.only(top: 4.0, bottom: 2.0),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -279,7 +278,6 @@ Widget _buildVisibilityToggles() {
         itemBuilder: (context, index) {
           final s = widget.sources[index];
           final isSelected = serieVisible[s.id] ?? true;
-          
           return Padding(
             padding: const EdgeInsets.only(right: 4.0),
             child: GestureDetector(
@@ -289,15 +287,14 @@ Widget _buildVisibilityToggles() {
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
-                  // Usamos opacidad cuando no está seleccionado para ahorrar ruido visual
                   color: isSelected ? s.color : s.color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(4), // Bordes menos redondeados ocupan menos
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   s.displayName,
                   style: TextStyle(
                     color: isSelected ? Colors.white : s.color,
-                    fontSize: 10, // Fuente mínima legible
+                    fontSize: 10,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
@@ -310,6 +307,8 @@ Widget _buildVisibilityToggles() {
   }
 
   Widget _buildZoomSlider() {
+    if (xRange == null) return const SizedBox.shrink();
+    
     final allTimes = multiData.values
         .expand((l) => l.map((e) => e.time.millisecondsSinceEpoch))
         .toList();
