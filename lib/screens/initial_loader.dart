@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 import 'chart_source_selector_screen.dart';
-import 'settings/api_keys_config_screen.dart'; 
 import '../localization/translations.dart';
 
 class InitialLoader extends StatefulWidget {
@@ -14,9 +13,12 @@ class InitialLoader extends StatefulWidget {
 }
 
 class _InitialLoaderState extends State<InitialLoader> {
-  // Por defecto iniciamos en inglés si no hay nada guardado
+  // Inicialización a 'en' por defecto
   String language = 'en'; 
   List<String> userApiKeys = [];
+  bool _isLoading = true;
+
+  final TextEditingController _apiController = TextEditingController();
 
   @override
   void initState() {
@@ -24,37 +26,124 @@ class _InitialLoaderState extends State<InitialLoader> {
     _loadConfig();
   }
 
+  @override
+  void dispose() {
+    _apiController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Sincronizamos con la clave usada en el main.dart
-    language = prefs.getString('selected_language') ?? 'en'; 
-    userApiKeys = prefs.getStringList('apiKeys') ?? [];
-
-    if (!mounted) return;
-
-    // Ya no cargamos traducciones aquí porque se encargó el main.dart
-    // de que el sistema estuviera listo.
-
-    if (userApiKeys.isEmpty) {
-      // Si no hay llaves, a la configuración inicial
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ApiKeysConfigScreen(
-            language: language,
-            userApiKeys: const [],
-          ),
-        ),
-      );
+    // Debug de favoritos en consola
+    List<String>? rawFavs = prefs.getStringList('favorites_list');
+    print("========= CONTENIDO DEL REGISTRO (FAVORITOS) =========");
+    if (rawFavs == null || rawFavs.isEmpty) {
+      print("El registro está vacío o la clave no existe.");
     } else {
-      // Si hay llaves, al selector de gráficas
+      for (var f in rawFavs) {
+        print(f); 
+      }
+    }
+    print("======================================================");
+
+    language = prefs.getString('language') ?? 'en'; 
+    userApiKeys = prefs.getStringList('apiKeys') ?? [];
+    _apiController.text = userApiKeys.join(',');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (userApiKeys.isEmpty) {
+        setState(() => _isLoading = false);
+        _showInitialConfig();
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChartSourceSelectorScreen(
+              language: language,
+              userApiKeys: userApiKeys,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> _showInitialConfig() async {
+    String tempLang = language;
+    Translations t = Translations(tempLang);
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          t = Translations(tempLang);
+          return AlertDialog(
+            title: Text(t.get('initial_config')),
+            // Usamos SingleChildScrollView para que el teclado no oculte el contenido
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _apiController,
+                    decoration: InputDecoration(
+                      labelText: t.get('api_keys'),
+                      hintText: "Key1, Key2...",
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  for (final lang in const [
+                    {'id': 'en', 'label': 'English'},
+                    {'id': 'es', 'label': 'Español'}, 
+                    {'id': 'eu', 'label': 'Euskara'},
+                  ])
+                    RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(lang['label']!),
+                      value: lang['id']!,
+                      groupValue: tempLang,
+                      onChanged: (v) => setDialogState(() => tempLang = v!),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  final keys = _apiController.text
+                      .split(',')
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty)
+                      .toList();
+
+                  Navigator.pop(context, {
+                    'apiKeys': keys,
+                    'language': tempLang,
+                  });
+                },
+                child: Text(t.get('save')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (result != null && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('apiKeys', result['apiKeys']);
+      await prefs.setString('language', result['language']);
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => ChartSourceSelectorScreen(
-            language: language,
-            userApiKeys: userApiKeys,
+            language: result['language'],
+            userApiKeys: result['apiKeys'],
           ),
         ),
       );
@@ -63,10 +152,14 @@ class _InitialLoaderState extends State<InitialLoader> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        // Mientras el Future _loadConfig decide el destino, mostramos esto
-        child: CircularProgressIndicator(), 
+    return Scaffold(
+      // SafeArea protege contra notches y barras de sistema
+      body: SafeArea(
+        child: Center(
+          child: _isLoading 
+              ? const CircularProgressIndicator() 
+              : const SizedBox(),
+        ),
       ),
     );
   }
